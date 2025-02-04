@@ -40,16 +40,6 @@ Managing and tracking contributions in Git repositories can be challenging, espe
 - Creating documentation for knowledge retention
 - Supporting performance evaluation processes
 
-## Why Use Git Author Log Generator?
-
-- **Contribution Tracking**: Easily generate reports of team members' work for standups, reviews, or documentation
-- **Audit Trail**: Create clean, readable logs for compliance or tracking project history
-- **Performance Reviews**: Generate detailed contribution logs for developer evaluations
-- **Documentation**: Automatically document changes by specific authors for release notes or changelogs
-- **Time Tracking**: Review work patterns and contribution timelines with date filtering
-- **AI-Enhanced Interview Prep**: Feed your contribution logs to AI tools to help prepare compelling examples of your work for interviews
-- **Easier Handover**: When team members transition in and out of projects, having a clear and detailed log of contributions can make handovers smoother. This tool helps in creating comprehensive documentation of what has been done, by whom, and when, ensuring that new team members can quickly get up to speed with the project's history and context.
-
 ## The Power of Good Commit Messages
 
 Ever wondered why senior developers insist on meaningful commit messages? This tool showcases exactly why - well-structured commit histories become invaluable for career growth, team collaboration, and project maintenance. Your future self (or your team) will thank you for those detailed commit messages when preparing for interviews or tracking down changes months later.
