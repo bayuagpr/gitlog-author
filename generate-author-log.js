@@ -588,3 +588,11 @@ Examples:
 }
 
 main();
+
+// Export for testing
+module.exports = {
+  GitLogError,
+  sanitizeFilename,
+  isValidDateFormat,
+  LRUCache
+};
