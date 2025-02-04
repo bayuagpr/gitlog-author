@@ -16,12 +16,39 @@ Managing and tracking contributions in Git repositories can be challenging, espe
 
 ## Why Use Git Author Log Generator?
 
+### For Developers
+- Preparing for performance reviews by showcasing your contributions
+- Building a portfolio of work examples for job interviews
+- Tracking your productivity and work patterns
+- Creating documentation for your handover when switching teams
+
+### For Team Leads
+- Generating sprint review reports of team contributions
+- Tracking team member productivity and work distribution
+- Creating audit trails for compliance requirements
+- Documenting team member impact for promotions
+
+### For Project Managers
+- Generating release notes and changelogs by contributor
+- Creating handover documentation when team members transition
+- Tracking project history and evolution
+- Monitoring contribution patterns across teams
+
+### For Organizations
+- Maintaining compliance audit trails
+- Tracking intellectual property contributions
+- Creating documentation for knowledge retention
+- Supporting performance evaluation processes
+
+## Why Use Git Author Log Generator?
+
 - **Contribution Tracking**: Easily generate reports of team members' work for standups, reviews, or documentation
 - **Audit Trail**: Create clean, readable logs for compliance or tracking project history
 - **Performance Reviews**: Generate detailed contribution logs for developer evaluations
 - **Documentation**: Automatically document changes by specific authors for release notes or changelogs
 - **Time Tracking**: Review work patterns and contribution timelines with date filtering
 - **AI-Enhanced Interview Prep**: Feed your contribution logs to AI tools to help prepare compelling examples of your work for interviews
+- **Easier Handover**: When team members transition in and out of projects, having a clear and detailed log of contributions can make handovers smoother. This tool helps in creating comprehensive documentation of what has been done, by whom, and when, ensuring that new team members can quickly get up to speed with the project's history and context.
 
 ## The Power of Good Commit Messages
 
