@@ -7,7 +7,8 @@ Before using this tool with AI services, any third party services or sharing log
 - No automatic filtering of secrets/credentials in this tool
 - You're responsible for any sensitive data exposure
 - Tool only shows changed files (no diffs) to minimize security risks
-
+- We are NOT responsible for any NDA violations or confidentiality breaches
+- If you work with confidential code, ensure you have permission to share commit logs
 
 ## Background
 
