@@ -594,5 +594,9 @@ module.exports = {
   GitLogError,
   sanitizeFilename,
   isValidDateFormat,
-  LRUCache
+  LRUCache,
+  execGitCommand,
+  isGitRepository,
+  getAuthorCommits,
+  getCommitDetails
 };
