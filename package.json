@@ -1,0 +1,21 @@
+{
+  "name": "gitlog-authormd",
+  "version": "1.0.0",
+  "description": "Generate markdown files from git logs filtered by author",
+  "main": "generate-author-log.js",
+  "bin": {
+    "gitlog-author": "./generate-author-log.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "git",
+    "log",
+    "markdown",
+    "author",
+    "commits"
+  ],
+  "author": "",
+  "license": "MIT"
+}
