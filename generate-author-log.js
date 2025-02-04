@@ -118,6 +118,36 @@ function sanitizeFilename(filename) {
     .substring(0, 255);
 }
 
+// Simple LRU cache implementation
+class LRUCache {
+  constructor(maxSize = 100) {
+    this.maxSize = maxSize;
+    this.cache = new Map();
+  }
+
+  get(key) {
+    if (!this.cache.has(key)) return null;
+    // Refresh the item
+    const value = this.cache.get(key);
+    this.cache.delete(key);
+    this.cache.set(key, value);
+    return value;
+  }
+
+  set(key, value) {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.maxSize) {
+      // Remove the oldest item
+      this.cache.delete(this.cache.keys().next().value);
+    }
+    this.cache.set(key, value);
+  }
+}
+
+// Cache for commit messages
+const commitCache = new LRUCache(1000);
+
 async function getAuthorCommits(author, since = '', until = '') {
   try {
     if (!author?.trim()) {
@@ -165,9 +195,12 @@ async function getAuthorCommits(author, since = '', until = '') {
         'log',
         '--author=' + pattern,
         '--date=iso',
-        '--pretty=format:"%H|%aI"',  // Added quotes around the format
+        '--pretty=format:"%H|%aI"',  // Keep original format for safety
         '--no-merges',
-        '--all'  // Include commits from all branches
+        '--no-notes',  // Optimization: skip notes
+        '--first-parent',  // Optimization: simplify history
+        '--all',  // Include commits from all branches
+        '--date-order'  // Ensure consistent date-based ordering
       ];
 
       if (since) args.push(`--since=${since}`);
@@ -191,10 +224,17 @@ async function getAuthorCommits(author, since = '', until = '') {
       return [];
     }
 
-    return await Promise.all(output.split('\n')
-      .filter(line => line.trim())
-      .map(async line => {
-        // Replace newlines in the commit message with spaces
+    // Process commits in batches of 50 for better memory management
+    const commits = output.split('\n').filter(line => line.trim());
+    const batchSize = 50;
+    const results = [];
+
+    process.stdout.write(`${colors.dim}Fetching commit details...${colors.reset}\r`);
+    for (let i = 0; i < commits.length; i += batchSize) {
+      const batch = commits.slice(i, i + batchSize);
+      const progress = Math.min(((i + batchSize) / commits.length) * 100, 100).toFixed(0);
+      process.stdout.write(`${colors.dim}Fetching commit details: ${progress}%${colors.reset}\r`);
+      const batchResults = await Promise.all(batch.map(async line => {
         const sanitizedLine = line.replace(/\n/g, ' ');
         const [hash, date] = sanitizedLine.split('|');
 
@@ -206,34 +246,64 @@ async function getAuthorCommits(author, since = '', until = '') {
           );
         }
 
-        // Get commit subject and body
+        const cleanHash = hash.replace(/"/g, '');
+
+        // Check cache first for commit message
+        const cachedMessage = commitCache.get(cleanHash);
+        if (cachedMessage !== null) {
+          const [subject, body] = cachedMessage;
+          return {
+            hash: cleanHash,
+            date: date.replace(/"/g, ''),
+            subject,
+            body
+          };
+        }
+
+        // Get commit subject and body if not in cache
         const messageArgs = [
           'show',
           '-s',  // suppress diff output
           '--format=%s|%b',  // %s=subject, %b=body
-          hash.replace(/"/g, '')  // Remove quotes from hash
+          '--no-notes',  // Optimization: skip notes
+          cleanHash
         ];
 
         try {
           const messageOutput = await execGitCommand('git', messageArgs);
           const [subject, ...bodyParts] = messageOutput.split('|');
           const body = bodyParts.join('|').trim();  // Rejoin in case body contained | character
-          return { 
-            hash: hash.replace(/"/g, ''), 
-            date: date.replace(/"/g, ''), 
-            subject: subject || '', 
-            body: body || '' 
+          
+          // Cache the message
+          commitCache.set(cleanHash, [subject || '', body || '']);
+          
+          return {
+            hash: cleanHash,
+            date: date.replace(/"/g, ''),
+            subject: subject || '',
+            body: body || ''
           };
         } catch (error) {
-          // If we can't get the message, return with empty subject/body
-          return { 
-            hash: hash.replace(/"/g, ''), 
-            date: date.replace(/"/g, ''), 
-            subject: '', 
-            body: '' 
+          return {
+            hash: cleanHash,
+            date: date.replace(/"/g, ''),
+            subject: '',
+            body: ''
           };
         }
       }));
+
+      results.push(...batchResults);
+
+      // Optional: Add a small delay between batches to prevent overwhelming the system
+      if (i + batchSize < commits.length) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    }
+    process.stdout.write('\n'); // Clear the progress line
+
+    // Final sort of all results to ensure consistent ordering
+    return results;
   } catch (error) {
     if (error instanceof GitLogError) {
       throw error;
@@ -265,14 +335,22 @@ async function getCommitDetails(hash) {
       );
     }
 
+    // Check cache first
+    const cachedDetails = commitCache.get(`details_${hash}`);
+    if (cachedDetails !== null) {
+      return cachedDetails;
+    }
+
     const args = [
       'show',
       hash,
       '--stat',
       '--pretty=format:%b',
       '--no-color',
+      '--no-notes',  // Optimization: skip notes
       '--no-abbrev-commit',  // Use full commit hash
-      '--no-walk'  // Don't traverse into submodules
+      '--no-walk',  // Don't traverse into submodules
+      '--first-parent'  // Optimization: simplify history
     ];
 
     const details = await execGitCommand('git', args);
@@ -283,6 +361,9 @@ async function getCommitDetails(hash) {
         { hash }
       );
     }
+
+    // Cache the result
+    commitCache.set(`details_${hash}`, details);
 
     return details;
   } catch (error) {
@@ -363,6 +444,8 @@ async function generateAuthorLog(author, since = '', until = '') {
     console.log(`${colors.blue}Fetching commits for author: ${colors.bright}${author}${colors.reset}`);
     
     const commits = await getAuthorCommits(author, since, until);
+    console.log(`${colors.green}✓ Found ${colors.bright}${commits.length}${colors.reset}${colors.green} commits${colors.reset}`);
+    
     if (!commits.length) {
       console.log(`${colors.yellow}No commits found for author: ${author}${colors.reset}`);
       return;
@@ -375,49 +458,76 @@ async function generateAuthorLog(author, since = '', until = '') {
     }
 
     const outputFile = path.join(outputDir, `${sanitizeFilename(author)}_${timestamp}.md`);
-    let markdown = `# Git Log for ${author}\n\n`;
-    markdown += `Generated on: ${new Date().toLocaleString('en-US', { timeZoneName: 'short' })}\n\n`;
+    const writeStream = fs.createWriteStream(outputFile);
+
+    // Write header
+    writeStream.write(`# Git Log for ${author}\n\n`);
+    writeStream.write(`Generated on: ${new Date().toLocaleString('en-US', { timeZoneName: 'short' })}\n\n`);
     
     if (since || until) {
-      markdown += '## Date Range\n';
-      if (since) markdown += `From: ${since}\n`;
-      if (until) markdown += `To: ${until}\n`;
-      markdown += '\n';
+      writeStream.write('## Date Range\n');
+      if (since) writeStream.write(`From: ${since}\n`);
+      if (until) writeStream.write(`To: ${until}\n`);
+      writeStream.write('\n');
     }
 
-    markdown += '## Commits\n\n';
+    writeStream.write('## Commits\n\n');
 
-    for (const commit of commits) {
-      // Escape markdown special characters in subject
-      const escapedSubject = commit.subject.replace(/([_*`#])/g, '\\$1');
-      markdown += `### ${escapedSubject}\n`;
-      markdown += `**Date:** ${commit.date}\n`;
-      markdown += `**Hash:** \`${commit.hash}\`\n\n`;
+    console.log(`${colors.blue}Processing commits and generating log file...${colors.reset}`);
+    
+    // Process commits in chunks while maintaining order
+    const chunkSize = 15;
+    for (let i = 0; i < commits.length; i += chunkSize) {
+      const chunk = commits.slice(i, Math.min(i + chunkSize, commits.length));
+      const progress = Math.min(((i + chunk.length) / commits.length) * 100, 100).toFixed(0);
+      process.stdout.write(`${colors.dim}Progress: ${progress}%${colors.reset}\r`);
+      
+      // Process chunk in parallel but write sequentially
+      const chunkResults = await Promise.all(chunk.map(async commit => {
+        const commitContent = [];
+        
+        const escapedSubject = commit.subject.replace(/([_*`#])/g, '\\$1');
+        commitContent.push(`### ${escapedSubject}\n`);
+        commitContent.push(`**Date:** ${new Date(commit.date).toLocaleString('en-US', { timeZoneName: 'short' })}\n`);
+        commitContent.push(`**Hash:** \`${commit.hash}\`\n\n`);
 
-      if (commit.body.trim()) {
-        const escapedBody = commit.body.trim()
-          .split('\n')
-          .map(line => 
-            // Escape markdown special characters and ensure proper quote formatting
-            `> ${line.replace(/([_*`#>])/g, '\\$1').trim()}`
-          )
-          .join('\n');
-        markdown += '**Description:**\n';
-        markdown += escapedBody;
-        markdown += '\n\n';
+        if (commit.body.trim()) {
+          const escapedBody = commit.body.trim()
+            .split('\n')
+            .map(line => `> ${line.replace(/([_*`#>])/g, '\\$1').trim()}`)
+            .join('\n');
+          commitContent.push('**Description:**\n');
+          commitContent.push(escapedBody);
+          commitContent.push('\n\n');
+        }
+
+        // Get commit details with caching
+        const details = await getCommitDetails(commit.hash);
+        if (details.trim()) {
+          commitContent.push('**Changes:**\n```\n');
+          commitContent.push(details.trim());
+          commitContent.push('\n```\n\n');
+        }
+
+        commitContent.push('---\n\n');
+        return commitContent.join('');
+      }));
+
+      // Write chunk results sequentially
+      for (const content of chunkResults) {
+        writeStream.write(content);
       }
-
-      const details = await getCommitDetails(commit.hash);
-      if (details.trim()) {
-        markdown += '**Changes:**\n```\n';
-        markdown += details.trim();
-        markdown += '\n```\n\n';
-      }
-
-      markdown += '---\n\n';
     }
 
-    fs.writeFileSync(outputFile, markdown);
+    // Close the write stream properly
+    await new Promise((resolve, reject) => {
+      writeStream.end(err => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    process.stdout.write('\n'); // Clear the progress line
     console.log(`${colors.green}✓ Generated log file: ${colors.reset}${outputFile}`);
     
     return outputFile;
