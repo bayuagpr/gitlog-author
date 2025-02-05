@@ -511,21 +511,58 @@ async function generateAuthorLog(author, since = '', until = '') {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    const outputFile = path.join(outputDir, `${sanitizeFilename(author)}_${timestamp}.md`);
-    const writeStream = fs.createWriteStream(outputFile);
+    const commitsFile = path.join(outputDir, `${sanitizeFilename(author)}_commits_${timestamp}.md`);
+    const commitsStream = fs.createWriteStream(commitsFile);
 
-    // Write header
-    writeStream.write(`# Git Log for ${author}\n\n`);
-    writeStream.write(`Generated on: ${new Date().toLocaleString('en-US', { timeZoneName: 'short' })}\n\n`);
+    // Write header for commits file
+    commitsStream.write(`# Git Log for ${author}\n\n`);
+    commitsStream.write(`Generated on: ${new Date().toLocaleString('en-US', { timeZoneName: 'short' })}\n\n`);
     
     if (since || until) {
-      writeStream.write('## Date Range\n');
-      if (since) writeStream.write(`From: ${since}\n`);
-      if (until) writeStream.write(`To: ${until}\n`);
-      writeStream.write('\n');
+      commitsStream.write('## Date Range\n');
+      if (since) commitsStream.write(`From: ${since}\n`);
+      if (until) commitsStream.write(`To: ${until}\n`);
+      commitsStream.write('\n');
     }
 
-    writeStream.write('## Commits\n\n');
+    // Calculate and write productivity metrics if not disabled
+    let metricsFile;
+    if (!process.argv.includes('--no-metrics')) {
+      console.log(`${colors.blue}Calculating productivity metrics...${colors.reset}`);
+      const metrics = await calculateVelocityMetrics(commits);
+      
+      metricsFile = path.join(outputDir, `${sanitizeFilename(author)}_metrics_${timestamp}.md`);
+      const metricsStream = fs.createWriteStream(metricsFile);
+      
+      metricsStream.write(`# Productivity Metrics for ${author}\n\n`);
+      metricsStream.write(`Generated on: ${new Date().toLocaleString('en-US', { timeZoneName: 'short' })}\n\n`);
+      
+      if (since || until) {
+        metricsStream.write('## Date Range\n');
+        if (since) metricsStream.write(`From: ${since}\n`);
+        if (until) metricsStream.write(`To: ${until}\n`);
+        metricsStream.write('\n');
+      }
+      
+      metricsStream.write('## Code Velocity\n\n');
+      metricsStream.write(`- **Total Lines Changed:** ${metrics.totalLinesChanged.toLocaleString()}\n`);
+      metricsStream.write(`- **Average Changes per Commit:** ${metrics.averageCommitSize.toLocaleString()} lines\n`);
+      metricsStream.write(`- **Commit Frequency:** ${metrics.commitsPerDay} commits per day\n`);
+      metricsStream.write('\n**Time Distribution:**\n');
+      metricsStream.write(`- Morning (5:00-11:59): ${metrics.timeDistribution.morning}%\n`);
+      metricsStream.write(`- Afternoon (12:00-16:59): ${metrics.timeDistribution.afternoon}%\n`);
+      metricsStream.write(`- Evening (17:00-4:59): ${metrics.timeDistribution.evening}%\n`);
+      
+      // Close metrics stream
+      await new Promise((resolve, reject) => {
+        metricsStream.end(err => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+    }
+
+    commitsStream.write('## Commits\n\n');
 
     console.log(`${colors.blue}Processing commits and generating log file...${colors.reset}`);
     
@@ -569,22 +606,25 @@ async function generateAuthorLog(author, since = '', until = '') {
 
       // Write chunk results sequentially
       for (const content of chunkResults) {
-        writeStream.write(content);
+        commitsStream.write(content);
       }
     }
 
-    // Close the write stream properly
+    // Close the commits stream properly
     await new Promise((resolve, reject) => {
-      writeStream.end(err => {
+      commitsStream.end(err => {
         if (err) reject(err);
         else resolve();
       });
     });
 
     process.stdout.write('\n'); // Clear the progress line
-    console.log(`${colors.green}✓ Generated log file: ${colors.reset}${outputFile}`);
+    console.log(`${colors.green}✓ Generated commits file: ${colors.reset}${commitsFile}`);
+    if (metricsFile) {
+      console.log(`${colors.green}✓ Generated metrics file: ${colors.reset}${metricsFile}`);
+    }
     
-    return outputFile;
+    return { commitsFile, metricsFile };
   } catch (error) {
     if (error instanceof GitLogError) {
       throw error;
@@ -605,7 +645,7 @@ async function main() {
       console.log(`
 ${colors.bright}Generate Git Log by Author${colors.reset}
 
-Usage: node generate-author-log.js <author> [--since=<date>] [--until=<date>] [--verify]
+Usage: node generate-author-log.js <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics]
 
 Arguments:
   author         Author name or email to filter commits by
@@ -615,6 +655,8 @@ Options:
   --until=<date> Show commits older than a specific date
   --verify       Verify author existence and show matching authors
   --list-authors Show all authors in the repository
+  --skip-fetch   Skip fetching latest changes from remote
+  --no-metrics   Skip productivity metrics calculation
   --help, -h     Show this help message
 
 Examples:
@@ -735,7 +777,7 @@ Examples:
     const since = sinceArg ? sinceArg.split('=')[1] : '';
     const until = untilArg ? untilArg.split('=')[1] : '';
 
-    await generateAuthorLog(author, since, until);
+    const { commitsFile, metricsFile } = await generateAuthorLog(author, since, until);
   } catch (error) {
     if (error instanceof GitLogError) {
       console.error(`${colors.red}Error: ${error.message}${colors.reset}`);
@@ -748,6 +790,96 @@ Examples:
 
 main();
 
+// Utility function to parse git stats output
+function parseGitStats(statsOutput) {
+  if (!statsOutput) return null;
+
+  const lines = statsOutput.split('\n');
+  const summaryLine = lines.find(line => line.includes('files changed'));
+  
+  if (!summaryLine) return null;
+
+  const stats = {
+    filesChanged: 0,
+    insertions: 0,
+    deletions: 0,
+    totalChanges: 0
+  };
+
+  const filesMatch = summaryLine.match(/(\d+) files? changed/);
+  const insertionsMatch = summaryLine.match(/(\d+) insertions?\(\+\)/);
+  const deletionsMatch = summaryLine.match(/(\d+) deletions?\(-\)/);
+
+  if (filesMatch) stats.filesChanged = parseInt(filesMatch[1], 10);
+  if (insertionsMatch) stats.insertions = parseInt(insertionsMatch[1], 10);
+  if (deletionsMatch) stats.deletions = parseInt(deletionsMatch[1], 10);
+  
+  stats.totalChanges = stats.insertions + stats.deletions;
+
+  return stats;
+}
+
+// Calculate velocity metrics from commits
+async function calculateVelocityMetrics(commits) {
+  if (!commits || !commits.length) {
+    return {
+      totalLinesChanged: 0,
+      averageCommitSize: 0,
+      commitsPerDay: 0,
+      timeDistribution: {
+        morning: 0,    // 5:00 - 11:59
+        afternoon: 0,  // 12:00 - 16:59
+        evening: 0     // 17:00 - 4:59
+      }
+    };
+  }
+
+  let totalChanges = 0;
+  const timeDistribution = { morning: 0, afternoon: 0, evening: 0 };
+  
+  // Process each commit
+  for (const commit of commits) {
+    // Get commit details for stats
+    const details = await getCommitDetails(commit.hash);
+    const stats = parseGitStats(details);
+    if (stats) {
+      totalChanges += stats.totalChanges;
+    }
+
+    // Analyze commit time
+    const commitDate = new Date(commit.date);
+    const hour = commitDate.getHours();
+    
+    if (hour >= 5 && hour < 12) {
+      timeDistribution.morning++;
+    } else if (hour >= 12 && hour < 17) {
+      timeDistribution.afternoon++;
+    } else {
+      timeDistribution.evening++;
+    }
+  }
+
+  // Calculate date range
+  const dates = commits.map(c => new Date(c.date));
+  const firstDate = new Date(Math.min(...dates));
+  const lastDate = new Date(Math.max(...dates));
+  const daysDiff = Math.max(1, Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)));
+
+  // Calculate metrics
+  const metrics = {
+    totalLinesChanged: totalChanges,
+    averageCommitSize: Math.round(totalChanges / commits.length),
+    commitsPerDay: +(commits.length / daysDiff).toFixed(2),
+    timeDistribution: {
+      morning: +((timeDistribution.morning / commits.length) * 100).toFixed(1),
+      afternoon: +((timeDistribution.afternoon / commits.length) * 100).toFixed(1),
+      evening: +((timeDistribution.evening / commits.length) * 100).toFixed(1)
+    }
+  };
+
+  return metrics;
+}
+
 // Export for testing
 module.exports = {
   GitLogError,
@@ -758,5 +890,7 @@ module.exports = {
   isGitRepository,
   getAuthorCommits,
   getCommitDetails,
-  getAllAuthors
+  getAllAuthors,
+  parseGitStats,
+  calculateVelocityMetrics
 };
