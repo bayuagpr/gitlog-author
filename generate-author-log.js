@@ -456,6 +456,17 @@ async function isGitRepository() {
   }
 }
 
+async function fetchLatestChanges() {
+  try {
+    console.log(`${colors.blue}Fetching latest changes from remote...${colors.reset}`);
+    await execGitCommand('git', ['fetch', '--all']);
+    return true;
+  } catch (error) {
+    console.log(`${colors.yellow}Warning: Failed to fetch from remote. Using local state only.${colors.reset}`);
+    return false;
+  }
+}
+
 async function generateAuthorLog(author, since = '', until = '') {
   try {
     // Check if current directory is a git repository
@@ -607,7 +618,11 @@ Examples:
       return;
     }
 
-    if (args.includes('--verify')) {
+    if (!args.includes('--skip-fetch')) {
+      await fetchLatestChanges();
+    }
+
+    if (args.includes('--list-authors')) {
       // Check if current directory is a git repository
       if (!await isGitRepository()) {
         throw new GitLogError(
