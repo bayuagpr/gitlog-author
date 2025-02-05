@@ -148,6 +148,42 @@ class LRUCache {
 // Cache for commit messages
 const commitCache = new LRUCache(1000);
 
+async function getAllAuthors() {
+  try {
+    const output = await execGitCommand('git', ['shortlog', '-sne', '--all']);
+    if (!output.trim()) {
+      return [];
+    }
+
+    // Parse the output into structured data
+    const authors = output.split('\n')
+      .filter(line => line.trim())
+      .map(line => {
+        // Format is: "commits\tAuthor Name <email@example.com>"
+        const match = line.trim().match(/^\s*(\d+)\s+(.+)\s+<(.+)>$/);
+        if (!match) return null;
+        
+        return {
+          commits: parseInt(match[1], 10),
+          name: match[2].trim(),
+          email: match[3].trim()
+        };
+      })
+      .filter(author => author !== null);
+
+    return authors;
+  } catch (error) {
+    if (error instanceof GitLogError) {
+      throw error;
+    }
+    throw new GitLogError(
+      'Failed to get authors list: ' + error.message,
+      'GIT_OPERATION_FAILED',
+      { error: error.message }
+    );
+  }
+}
+
 async function getAuthorCommits(author, since = '', until = '') {
   try {
     if (!author?.trim()) {
@@ -551,7 +587,7 @@ async function main() {
       console.log(`
 ${colors.bright}Generate Git Log by Author${colors.reset}
 
-Usage: node generate-author-log.js <author> [--since=<date>] [--until=<date>]
+Usage: node generate-author-log.js <author> [--since=<date>] [--until=<date>] [--verify]
 
 Arguments:
   author         Author name or email to filter commits by
@@ -559,13 +595,40 @@ Arguments:
 Options:
   --since=<date> Show commits more recent than a specific date
   --until=<date> Show commits older than a specific date
+  --verify       List all authors and their commit counts
   --help, -h     Show this help message
 
 Examples:
   node generate-author-log.js "John Doe"
   node generate-author-log.js "john@example.com" --since="1 week ago"
   node generate-author-log.js "John Doe" --since="2023-01-01" --until="2023-12-31"
+  node generate-author-log.js --verify
       `);
+      return;
+    }
+
+    if (args.includes('--verify')) {
+      // Check if current directory is a git repository
+      if (!await isGitRepository()) {
+        throw new GitLogError(
+          'Not a git repository. Please run this command from within a git repository.',
+          'NOT_GIT_REPO'
+        );
+      }
+
+      console.log(`${colors.blue}Fetching all authors...${colors.reset}`);
+      const authors = await getAllAuthors();
+      
+      if (!authors.length) {
+        console.log(`${colors.yellow}No commits found in this repository${colors.reset}`);
+        return;
+      }
+
+      console.log(`\n${colors.bright}Authors in this repository:${colors.reset}\n`);
+      authors.forEach(author => {
+        console.log(`${colors.green}${author.commits.toString().padStart(4)}${colors.reset} ${author.name} <${author.email}>`);
+      });
+      console.log(`\n${colors.bright}Total authors: ${authors.length}${colors.reset}`);
       return;
     }
 
@@ -598,5 +661,6 @@ module.exports = {
   execGitCommand,
   isGitRepository,
   getAuthorCommits,
-  getCommitDetails
+  getCommitDetails,
+  getAllAuthors
 };
