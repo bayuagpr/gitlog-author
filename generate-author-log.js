@@ -150,7 +150,14 @@ const commitCache = new LRUCache(1000);
 
 async function getAllAuthors() {
   try {
-    const output = await execGitCommand('git', ['shortlog', '-sne', '--all']);
+    // Use consistent flags with getAuthorCommits() to ensure accurate commit counts
+    const output = await execGitCommand('git', [
+      'shortlog',
+      '-sne',
+      '--all',
+      '--no-merges',     // Exclude merge commits like in getAuthorCommits
+      '--first-parent'   // Use same history traversal as getAuthorCommits
+    ]);
     if (!output.trim()) {
       return [];
     }
@@ -606,17 +613,20 @@ Arguments:
 Options:
   --since=<date> Show commits more recent than a specific date
   --until=<date> Show commits older than a specific date
-  --verify       List all authors and their commit counts
+  --verify       Verify author existence and show matching authors
+  --list-authors Show all authors in the repository
   --help, -h     Show this help message
 
 Examples:
   node generate-author-log.js "John Doe"
   node generate-author-log.js "john@example.com" --since="1 week ago"
   node generate-author-log.js "John Doe" --since="2023-01-01" --until="2023-12-31"
-  node generate-author-log.js --verify
+  node generate-author-log.js "John" --verify
+  node generate-author-log.js --list-authors
       `);
       return;
     }
+
 
     if (!args.includes('--skip-fetch')) {
       await fetchLatestChanges();
@@ -644,6 +654,77 @@ Examples:
         console.log(`${colors.green}${author.commits.toString().padStart(4)}${colors.reset} ${author.name} <${author.email}>`);
       });
       console.log(`\n${colors.bright}Total authors: ${authors.length}${colors.reset}`);
+      return;
+    }
+
+    if (args.includes('--verify')) {
+      // Check if current directory is a git repository
+      if (!await isGitRepository()) {
+        throw new GitLogError(
+          'Not a git repository. Please run this command from within a git repository.',
+          'NOT_GIT_REPO'
+        );
+      }
+
+      const authorQuery = args[0];
+      if (!authorQuery) {
+        throw new GitLogError(
+          'Author name or email is required with --verify',
+          'INVALID_AUTHOR'
+        );
+      }
+
+      console.log(`${colors.blue}Verifying author: ${colors.bright}${authorQuery}${colors.reset}`);
+      const authors = await getAllAuthors();
+      
+      if (!authors.length) {
+        console.log(`${colors.yellow}No commits found in this repository${colors.reset}`);
+        return;
+      }
+
+      // Case-insensitive search for matching authors
+      const matchingAuthors = authors.filter(author => {
+        const searchStr = authorQuery.toLowerCase();
+        return author.name.toLowerCase().includes(searchStr) || 
+               author.email.toLowerCase().includes(searchStr);
+      });
+
+      if (matchingAuthors.length === 0) {
+        console.log(`${colors.yellow}No matching authors found for: ${authorQuery}${colors.reset}`);
+        return;
+      }
+
+      console.log(`\n${colors.bright}Matching authors:${colors.reset}\n`);
+      for (const author of matchingAuthors) {
+        console.log(`${colors.green}✓${colors.reset} ${author.name} <${author.email}> (${colors.bright}${author.commits}${colors.reset} commits)`);
+      }
+
+      // Check for commits in date range if specified
+      const sinceArg = args.find(arg => arg.startsWith('--since='));
+      const untilArg = args.find(arg => arg.startsWith('--until='));
+      const since = sinceArg ? sinceArg.split('=')[1] : '';
+      const until = untilArg ? untilArg.split('=')[1] : '';
+
+      if (since || until) {
+        console.log(`\n${colors.bright}Date range verification:${colors.reset}`);
+        if (since) console.log(`From: ${since}`);
+        if (until) console.log(`To: ${until}`);
+        console.log('');
+
+        for (const author of matchingAuthors) {
+          process.stdout.write(`${colors.dim}Checking commits for ${author.name}...${colors.reset}\r`);
+          const commits = await getAuthorCommits(author.name, since, until);
+          if (commits.length > 0) {
+            console.log(`${colors.green}✓${colors.reset} ${author.name}: ${colors.bright}${commits.length}${colors.reset} commits in this period`);
+          } else {
+            console.log(`${colors.yellow}○${colors.reset} ${author.name}: No commits in this period`);
+          }
+        }
+      }
+
+      const totalCommits = matchingAuthors.reduce((sum, author) => sum + author.commits, 0);
+      console.log(`\n${colors.bright}Total commits by matching authors: ${colors.reset}${totalCommits}`);
+
       return;
     }
 
