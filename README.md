@@ -1,10 +1,11 @@
-# Git Author Log Generator
+# gitlog-author
 
-CLI tool to generate detailed Markdown logs of git commits by author.
+A powerful CLI tool to generate rich, author-focused Git commit logs with metrics and trends in Markdown format.
 
 ⚠️ **IMPORTANT DISCLAIMER**
 Before using this tool with AI services, any third party services or sharing logs, please be aware that:
 - No automatic filtering of secrets/credentials in this tool
+
 - You're responsible for any sensitive data exposure
 - Tool only shows changed files (no diffs) to minimize security risks
 - We are NOT responsible for any NDA violations or confidentiality breaches
