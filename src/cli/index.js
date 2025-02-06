@@ -134,10 +134,10 @@ async function generateTrendLog(author, period, since = '', until = '') {
       if (trend.metrics.commitCount > 0) {
         // Time distribution
         trendStream.write('Time Distribution:\n');
-        const { morning, afternoon, evening } = trend.metrics.timeDistribution;
-        trendStream.write(`- 🌅 Morning (5:00-11:59): ${morning}%\n`);
-        trendStream.write(`- 🌞 Afternoon (12:00-16:59): ${afternoon}%\n`);
-        trendStream.write(`- 🌙 Evening (17:00-4:59): ${evening}%\n\n`);
+        const { morningPercent, afternoonPercent, eveningPercent } = trend.metrics.timeDistribution;
+        trendStream.write(`- 🌅 Morning (5:00-11:59): ${morningPercent}%\n`);
+        trendStream.write(`- 🌞 Afternoon (12:00-16:59): ${afternoonPercent}%\n`);
+        trendStream.write(`- 🌙 Evening (17:00-4:59): ${eveningPercent}%\n\n`);
 
         // Commit types
         if (Object.keys(trend.metrics.commitTypes).length > 0) {

@@ -101,7 +101,10 @@ async function calculateTrendMetrics(commits) {
   const timeDistribution = {
     morning: 0,
     afternoon: 0,
-    evening: 0
+    evening: 0,
+    morningPercent: 0,
+    afternoonPercent: 0,
+    eveningPercent: 0
   };
 
   const commitTypes = {};
@@ -121,6 +124,14 @@ async function calculateTrendMetrics(commits) {
       commitTypes[type] = (commitTypes[type] || 0) + 1;
     });
   });
+
+  // Calculate percentages
+  const total = commits.length;
+  if (total > 0) {
+    timeDistribution.morningPercent = Math.round((timeDistribution.morning / total) * 100);
+    timeDistribution.afternoonPercent = Math.round((timeDistribution.afternoon / total) * 100);
+    timeDistribution.eveningPercent = Math.round((timeDistribution.evening / total) * 100);
+  }
 
   return {
     commitCount: commits.length,
