@@ -155,7 +155,7 @@ async function calculateVelocityMetrics(commits) {
     // Prepare commit data for type analysis
     const files = impact?.topFiles.map(([file]) => file) || [];
     commitsWithFiles.push({
-      message: commit.message,
+      message: commit.subject,
       files
     });
     

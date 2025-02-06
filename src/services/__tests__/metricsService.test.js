@@ -195,9 +195,10 @@ src/file2.js | 5`);
 
     test('should include type metrics in the results', async () => {
       const mockCommits = [
-        { hash: 'hash1', message: 'feat: new feature', date: '2024-01-01T10:00:00Z' },
-        { hash: 'hash2', message: 'fix: bug fix', date: '2024-01-02T14:00:00Z' },
-        { hash: 'hash3', message: 'test: add tests', date: '2024-01-03T16:00:00Z' }
+        { hash: 'hash1', subject: 'feat: new feature', date: '2024-01-01T10:00:00Z' },
+        { hash: 'hash2', subject: 'fix: bug fix', date: '2024-01-02T14:00:00Z' },
+        { hash: 'hash3', subject: 'test: add tests', date: '2024-01-03T16:00:00Z' }
+
       ];
 
       const mockDetails = `
