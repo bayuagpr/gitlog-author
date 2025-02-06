@@ -202,13 +202,16 @@ Supports various date formats:
 The script generates the following Markdown files in the `git-logs` directory:
 
 ### 1. Commit Log File (`<author>_commits_<timestamp>.md`)
+Generated unless `--verify`, `--list-authors`, or `--trend=<period>` is specified:
 - Commit messages and descriptions
 - Timestamps
 - File changes (without content diffs)
 - Commit hashes
 
+
+
 ### 2. Metrics File (`<author>_metrics_<timestamp>.md`) 
-Generated unless `--no-metrics` is specified:
+Generated unless `--no-metrics` or `--trend=<period>` is specified:
 - Code Velocity
   - Total lines changed
   - Average changes per commit
@@ -220,9 +223,10 @@ Generated unless `--no-metrics` is specified:
 - Impact Analysis
   - Most modified source files
   - Directory impact breakdown
+  - Commit type analysis
 
 ### 3. Trend File (`<author>_<period>_trend_<timestamp>.md`)
-Generated when using `--trend=<period>`:
+Generated only when using `--trend=<period>`:
 - Overview section with:
   - Total commits in period
   - Most active day/week/month
@@ -239,7 +243,7 @@ All files include:
 - Sanitized filenames
 
 ## Output Example
-You can check the output example in the [output-example/output-example.md](/output-example/output-example.md) file
+You can check the output example (commit log version) in the [output-example/output-example.md](/output-example/output-example.md) file
 
 ## Requirements
 
