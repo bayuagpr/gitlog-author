@@ -3,7 +3,7 @@
 const path = require('path');
 const { colors } = require('../constants');
 const { isGitRepository, fetchLatestChanges } = require('../services/gitOperations');
-const { getAllAuthors, getAuthorCommits } = require('../services/authorService');
+const { getAllAuthors, getAuthorCommits, getCommitDetails } = require('../services/authorService');
 const { calculateVelocityMetrics } = require('../services/metricsService');
 const { sanitizeFilename, createWriteStream } = require('../utils/fileUtils');
 const GitLogError = require('../models/GitLogError');
@@ -105,6 +105,13 @@ async function generateAuthorLog(author, since = '', until = '') {
           metricsStream.write(`- \`${directory}\`: ${changes.toLocaleString()} changes (${percentage}%)\n`);
         });
       }
+
+      metricsStream.write('\n## Commit Type Analysis\n\n');
+      metricsStream.write(`**Primary Contribution Type:** ${metrics.typeMetrics.primaryContributionType}\n\n`);
+      metricsStream.write('**Type Breakdown:**\n');
+      metrics.typeMetrics.typeBreakdown.forEach(({ type, percentage }) => {
+        metricsStream.write(`- ${type}: ${percentage}%\n`);
+      });
       
       await new Promise((resolve, reject) => {
         metricsStream.end(err => {
@@ -143,6 +150,14 @@ async function generateAuthorLog(author, since = '', until = '') {
           commitContent.push(escapedBody);
           commitContent.push('\n\n');
         }
+
+         // Get commit details with caching
+         const details = await getCommitDetails(commit.hash);
+         if (details.trim()) {
+           commitContent.push('**Changes:**\n```\n');
+           commitContent.push(details.trim());
+           commitContent.push('\n```\n\n');
+         }
 
         commitContent.push('---\n\n');
         return commitContent.join('');

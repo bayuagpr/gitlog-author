@@ -1,6 +1,7 @@
 const path = require('path');
 const { EXCLUDED_PATTERNS, SOURCE_PATTERNS } = require('../constants');
 const { getCommitDetails } = require('./authorService');
+const { calculateTypeMetrics } = require('./commitTypeService');
 
 function shouldIncludeFile(filePath) {
   if (EXCLUDED_PATTERNS.some(pattern => pattern.test(filePath))) {
@@ -127,6 +128,10 @@ async function calculateVelocityMetrics(commits) {
       impactMetrics: {
         topFiles: [],
         directoryImpact: []
+      },
+      typeMetrics: {
+        typeBreakdown: [],
+        primaryContributionType: 'UNKNOWN'
       }
     };
   }
@@ -136,6 +141,9 @@ async function calculateVelocityMetrics(commits) {
     directoryImpact: new Map()
   };
 
+  // Prepare commits with files for type analysis
+  const commitsWithFiles = [];
+  
   let totalChanges = 0;
   const timeDistribution = { morning: 0, afternoon: 0, evening: 0 };
   
@@ -143,6 +151,13 @@ async function calculateVelocityMetrics(commits) {
     const details = await getCommitDetails(commit.hash);
     const stats = parseGitStats(details);
     const impact = analyzeFileImpact(details);
+    
+    // Prepare commit data for type analysis
+    const files = impact?.topFiles.map(([file]) => file) || [];
+    commitsWithFiles.push({
+      message: commit.message,
+      files
+    });
     
     if (stats) {
       totalChanges += stats.totalChanges;
@@ -175,6 +190,9 @@ async function calculateVelocityMetrics(commits) {
   const lastDate = new Date(Math.max(...dates));
   const daysDiff = Math.max(1, Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)));
 
+  // Calculate type metrics
+  const typeMetrics = calculateTypeMetrics(commitsWithFiles);
+
   const metrics = {
     totalLinesChanged: totalChanges,
     averageCommitSize: Math.round(totalChanges / commits.length),
@@ -196,7 +214,8 @@ async function calculateVelocityMetrics(commits) {
           changes,
           percentage: ((changes / totalChanges) * 100).toFixed(1)
         }))
-    }
+    },
+    typeMetrics
   };
 
   return metrics;

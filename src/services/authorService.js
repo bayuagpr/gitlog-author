@@ -191,55 +191,57 @@ async function getAuthorCommits(author, since = '', until = '') {
 }
 
 async function getCommitDetails(hash) {
-  try {
-    if (!hash?.match(/^[0-9a-f]+$/i)) {
+    try {
+      if (!hash?.match(/^[0-9a-f]+$/i)) {
+        throw new GitLogError(
+          'Invalid commit hash format',
+          'INVALID_HASH_FORMAT',
+          { hash }
+        );
+      }
+  
+      // Check cache first
+      const cachedDetails = commitCache.get(`details_${hash}`);
+      if (cachedDetails !== null) {
+        return cachedDetails;
+      }
+  
+      const args = [
+        'show',
+        hash,
+        '--stat',
+        '--pretty=format:',
+        '--no-color',
+        '--no-notes',
+        '--no-abbrev-commit',
+        '--no-walk',
+        '--first-parent'
+      ];
+  
+      const details = await execGitCommand('git', args);
+      if (!details.trim()) {
+        throw new GitLogError(
+          'No details found for commit',
+          'COMMIT_NOT_FOUND',
+          { hash }
+        );
+      }
+  
+      // Cache the result
+      commitCache.set(`details_${hash}`, details);
+  
+      return details;
+    } catch (error) {
+      if (error instanceof GitLogError) {
+        throw error;
+      }
       throw new GitLogError(
-        'Invalid commit hash format',
-        'INVALID_HASH_FORMAT',
-        { hash }
+        'Failed to get commit details: ' + error.message,
+        'GIT_OPERATION_FAILED',
+        { hash, error: error.message }
       );
     }
-
-    // Check cache first
-    const cachedDetails = commitCache.get(`details_${hash}`);
-    if (cachedDetails !== null) {
-      return cachedDetails;
-    }
-
-    const args = [
-      'show',
-      hash,
-      '--stat',
-      '--pretty=format:%b',
-      '--no-color',
-      '--no-notes',
-      '--no-abbrev-commit',
-      '--no-walk',
-      '--first-parent'
-    ];
-
-    const details = await execGitCommand('git', args);
-    if (!details.trim()) {
-      throw new GitLogError(
-        'No details found for commit',
-        'COMMIT_NOT_FOUND',
-        { hash }
-      );
-    }
-
-    commitCache.set(`details_${hash}`, details);
-    return details;
-  } catch (error) {
-    if (error instanceof GitLogError) {
-      throw error;
-    }
-    throw new GitLogError(
-      'Failed to get commit details: ' + error.message,
-      'GIT_OPERATION_FAILED',
-      { hash, error: error.message }
-    );
   }
-}
 
 module.exports = {
   getAllAuthors,

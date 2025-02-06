@@ -128,6 +128,10 @@ describe('Metrics Service', () => {
         impactMetrics: {
           topFiles: [],
           directoryImpact: []
+        },
+        typeMetrics: {
+          typeBreakdown: [],
+          primaryContributionType: 'UNKNOWN'
         }
       });
     });
@@ -186,6 +190,48 @@ src/file2.js | 5`);
         morning: 50,
         afternoon: 50,
         evening: 0
+      });
+    });
+
+    test('should include type metrics in the results', async () => {
+      const mockCommits = [
+        { hash: 'hash1', message: 'feat: new feature', date: '2024-01-01T10:00:00Z' },
+        { hash: 'hash2', message: 'fix: bug fix', date: '2024-01-02T14:00:00Z' },
+        { hash: 'hash3', message: 'test: add tests', date: '2024-01-03T16:00:00Z' }
+      ];
+
+      const mockDetails = `
+        src/feature.js | 10 +++++-----
+        1 file changed, 5 insertions(+), 5 deletions(-)
+      `;
+
+      getCommitDetails.mockResolvedValue(mockDetails);
+
+      const metrics = await calculateVelocityMetrics(mockCommits);
+
+      expect(metrics.typeMetrics).toBeDefined();
+      expect(metrics.typeMetrics.typeBreakdown).toBeInstanceOf(Array);
+      expect(metrics.typeMetrics.primaryContributionType).toBeDefined();
+
+      const featureType = metrics.typeMetrics.typeBreakdown.find(t => t.type === 'FEATURE');
+      const bugFixType = metrics.typeMetrics.typeBreakdown.find(t => t.type === 'BUG_FIX');
+      const testType = metrics.typeMetrics.typeBreakdown.find(t => t.type === 'TEST');
+
+      expect(featureType).toBeDefined();
+      expect(bugFixType).toBeDefined();
+      expect(testType).toBeDefined();
+
+      expect(featureType.percentage).toBe('33.33');
+      expect(bugFixType.percentage).toBe('33.33');
+      expect(testType.percentage).toBe('33.33');
+    });
+
+    test('should handle empty commits for type metrics', async () => {
+      const metrics = await calculateVelocityMetrics([]);
+      
+      expect(metrics.typeMetrics).toEqual({
+        typeBreakdown: [],
+        primaryContributionType: 'UNKNOWN'
       });
     });
   });
