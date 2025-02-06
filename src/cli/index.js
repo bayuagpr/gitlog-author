@@ -40,10 +40,12 @@ function writeDirectoryTree(group, level = 0) {
  * @param {string} period - Time period for trend analysis ('daily', 'weekly', or 'monthly')
  * @param {string} [since=''] - Start date for analysis
  * @param {string} [until=''] - End date for analysis
+ * @param {string[]} [includeDirs=[]] - Array of directories to include in the analysis
+ * @param {string[]} [excludeDirs=[]] - Array of directories to exclude from the analysis
  * @returns {Promise<{trendFile: string}>} Path to generated trend file
  * @throws {GitLogError} If repository validation fails or trend generation fails
  */
-async function generateTrendLog(author, period, since = '', until = '') {
+async function generateTrendLog(author, period, since = '', until = '', includeDirs = [], excludeDirs = []) {
   try {
     if (!await isGitRepository()) {
       throw new GitLogError(
@@ -67,6 +69,23 @@ async function generateTrendLog(author, period, since = '', until = '') {
       trendStream.write('## Date Range\n');
       if (since) trendStream.write(`From: ${since}\n`);
       if (until) trendStream.write(`To: ${until}\n`);
+      trendStream.write('\n');
+    }
+
+    if (includeDirs.length > 0 || excludeDirs.length > 0) {
+      trendStream.write('## Directory Scope\n');
+      if (includeDirs.length > 0) {
+        trendStream.write('Including only:\n');
+        includeDirs.forEach(dir => {
+          trendStream.write(`- \`${dir}\`\n`);
+        });
+      }
+      if (excludeDirs.length > 0) {
+        trendStream.write('Excluding:\n');
+        excludeDirs.forEach(dir => {
+          trendStream.write(`- \`${dir}\`\n`);
+        });
+      }
       trendStream.write('\n');
     }
 
@@ -120,7 +139,7 @@ async function generateTrendLog(author, period, since = '', until = '') {
         break;
     }
 
-    const trends = await getRollingTrends(author, period, periodCount, endDate);
+    const trends = await getRollingTrends(author, period, periodCount, endDate, includeDirs, excludeDirs);
 
     // Calculate overview metrics
     const totalCommits = trends.reduce((sum, t) => sum + t.metrics.commitCount, 0);
@@ -213,10 +232,12 @@ async function generateTrendLog(author, period, since = '', until = '') {
  * @param {string} author - Author name or email to analyze
  * @param {string} [since=''] - Start date for analysis
  * @param {string} [until=''] - End date for analysis
+ * @param {string[]} [includeDirs=[]] - Array of directories to include in the analysis
+ * @param {string[]} [excludeDirs=[]] - Array of directories to exclude from the analysis
  * @returns {Promise<void>}
  * @throws {GitLogError} If repository validation fails or log generation fails
  */
-async function generateAuthorLog(author, since = '', until = '') {
+async function generateAuthorLog(author, since = '', until = '', includeDirs = [], excludeDirs = []) {
   try {
     if (!await isGitRepository()) {
       throw new GitLogError(
@@ -227,7 +248,7 @@ async function generateAuthorLog(author, since = '', until = '') {
 
     console.log(`${colors.blue}Fetching commits for author: ${colors.bright}${author}${colors.reset}`);
     
-    const commits = await getAuthorCommits(author, since, until);
+    const commits = await getAuthorCommits(author, since, until, includeDirs, excludeDirs);
     console.log(`${colors.green}✓ Found ${colors.bright}${commits.length}${colors.reset}${colors.green} commits${colors.reset}`);
     
     if (!commits.length) {
@@ -252,11 +273,28 @@ async function generateAuthorLog(author, since = '', until = '') {
       commitsStream.write('\n');
     }
 
+    if (includeDirs.length > 0 || excludeDirs.length > 0) {
+      commitsStream.write('## Directory Scope\n');
+      if (includeDirs.length > 0) {
+        commitsStream.write('Including only:\n');
+        includeDirs.forEach(dir => {
+          commitsStream.write(`- \`${dir}\`\n`);
+        });
+      }
+      if (excludeDirs.length > 0) {
+        commitsStream.write('Excluding:\n');
+        excludeDirs.forEach(dir => {
+          commitsStream.write(`- \`${dir}\`\n`);
+        });
+      }
+      commitsStream.write('\n');
+    }
+
     // Calculate and write productivity metrics if not disabled
     let metricsFile;
     if (!process.argv.includes('--no-metrics')) {
       console.log(`${colors.blue}Calculating productivity metrics...${colors.reset}`);
-      const metrics = await calculateVelocityMetrics(commits);
+      const metrics = await calculateVelocityMetrics(commits, includeDirs, excludeDirs);
       
       metricsFile = path.join(outputDir, `${sanitizeFilename(author)}_metrics_${timestamp}.md`);
       const metricsStream = createWriteStream(metricsFile);
@@ -390,8 +428,6 @@ async function generateAuthorLog(author, since = '', until = '') {
   }
 }
 
-
-
 /**
  * Main CLI entry point
  * @async
@@ -405,7 +441,7 @@ async function main() {
       console.log(`
 ${colors.bright}Generate Git Log by Author${colors.reset}
 
-Usage: gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>]
+Usage: gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>] [--include-dirs=<dirs>] [--exclude-dirs=<dirs>]
 
 Arguments:
   author         Author name or email to filter commits by
@@ -418,6 +454,8 @@ Options:
   --skip-fetch   Skip fetching latest changes from remote
   --no-metrics   Skip productivity metrics calculation
   --trend=<period> Generate contribution trend report (daily, weekly, or monthly)
+  --include-dirs=<dirs> Only include commits affecting these directories (comma-separated)
+  --exclude-dirs=<dirs> Exclude commits affecting these directories (comma-separated)
   --help, -h     Show this help message
 
 Examples:
@@ -429,6 +467,8 @@ Examples:
   gitlog-author "John Doe" --trend=daily    # Show last 7 days trends
   gitlog-author "John Doe" --trend=weekly   # Show last 4 weeks trends
   gitlog-author "John Doe" --trend=monthly  # Show last 6 months trends
+  gitlog-author "John Doe" --include-dirs="src,tests"  # Only src and tests directories
+  gitlog-author "John Doe" --exclude-dirs="node_modules,dist"  # Exclude build artifacts
       `);
       return;
     }
@@ -534,10 +574,22 @@ Examples:
     const sinceArg = args.find(arg => arg.startsWith('--since='));
     const untilArg = args.find(arg => arg.startsWith('--until='));
     const trendArg = args.find(arg => arg.startsWith('--trend='));
+    const includeDirsArg = args.find(arg => arg.startsWith('--include-dirs='));
+    const excludeDirsArg = args.find(arg => arg.startsWith('--exclude-dirs='));
 
     const since = sinceArg ? sinceArg.split('=')[1] : '';
     const until = untilArg ? untilArg.split('=')[1] : '';
     const trend = trendArg ? trendArg.split('=')[1] : '';
+    const includeDirs = includeDirsArg ? includeDirsArg.split('=')[1].split(',') : [];
+    const excludeDirs = excludeDirsArg ? excludeDirsArg.split('=')[1].split(',') : [];
+
+    // Validate that include-dirs and exclude-dirs are not used together
+    if (includeDirs.length > 0 && excludeDirs.length > 0) {
+      throw new GitLogError(
+        'Cannot use both --include-dirs and --exclude-dirs at the same time',
+        'INVALID_ARGS'
+      );
+    }
 
     if (trend) {
       if (!['daily', 'weekly', 'monthly'].includes(trend)) {
@@ -546,9 +598,9 @@ Examples:
           'INVALID_TREND_PERIOD'
         );
       }
-      await generateTrendLog(author, trend, since, until);
+      await generateTrendLog(author, trend, since, until, includeDirs, excludeDirs);
     } else {
-      await generateAuthorLog(author, since, until);
+      await generateAuthorLog(author, since, until, includeDirs, excludeDirs);
     }
   } catch (error) {
     if (error instanceof GitLogError) {

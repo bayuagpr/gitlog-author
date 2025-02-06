@@ -140,7 +140,7 @@ async function calculateTrendMetrics(commits) {
   };
 }
 
-async function getTrends(author, period, date = new Date()) {
+async function getTrends(author, period, date = new Date(), includeDirs = [], excludeDirs = []) {
   if (!PERIODS[period]) {
     throw new Error(`Invalid period: ${period}. Must be one of: ${Object.keys(PERIODS).join(', ')}`);
   }
@@ -152,7 +152,9 @@ async function getTrends(author, period, date = new Date()) {
   const commits = await getAuthorCommits(
     author,
     startDate.toISOString(),
-    endDate.toISOString()
+    endDate.toISOString(),
+    includeDirs,
+    excludeDirs
   );
 
   const metrics = await calculateTrendMetrics(commits);
@@ -165,16 +167,16 @@ async function getTrends(author, period, date = new Date()) {
   };
 }
 
-async function compareTrends(author, period, date1, date2) {
+async function compareTrends(author, period, date1, date2, includeDirs = [], excludeDirs = []) {
   const [trends1, trends2] = await Promise.all([
-    getTrends(author, period, date1),
-    getTrends(author, period, date2)
+    getTrends(author, period, date1, includeDirs, excludeDirs),
+    getTrends(author, period, date2, includeDirs, excludeDirs)
   ]);
 
   return [trends1, trends2];
 }
 
-async function getRollingTrends(author, period, count, endDate = new Date()) {
+async function getRollingTrends(author, period, count, endDate = new Date(), includeDirs = [], excludeDirs = []) {
   if (!PERIODS[period]) {
     throw new Error(`Invalid period: ${period}`);
   }
@@ -200,7 +202,7 @@ async function getRollingTrends(author, period, count, endDate = new Date()) {
         break;
     }
 
-    const trend = await getTrends(author, period, date);
+    const trend = await getTrends(author, period, date, includeDirs, excludeDirs);
     trends.push(trend);
   }
 
