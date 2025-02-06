@@ -1,10 +1,14 @@
 # Future Productivity Metrics Implementation
 
 ## Impact Metrics (Medium Confidence - 75%)
-- [ ] Files modified per commit
-- [ ] Directory/component coverage analysis
-  - Track which parts of the codebase they work on most
-  - Identify areas of expertise
+- [x] Files modified per commit (Implemented)
+- [x] Directory/component coverage analysis (Implemented)
+  - Track which parts of the codebase they work on most ✓
+  - Identify areas of expertise ✓
+  - Implementation details:
+    - Shows top 5 most modified files
+    - Tracks changes per directory with percentages
+    - Aggregates changes across commits
 - [ ] Type of changes categorization
   - Feature additions
   - Bug fixes
@@ -53,7 +57,7 @@
 - [ ] Integration with external analysis tools
 
 ## Notes
-- Current implementation focuses on Code Velocity Metrics as Phase 1
+- Current implementation includes both Code Velocity Metrics (Phase 1) and Impact Metrics (Phase 2)
 - Future phases should prioritize Impact Metrics and Collaboration Metrics due to their higher confidence levels
 - Code Quality Indicators may require more sophisticated analysis algorithms
 - All metrics should remain objective and quantifiable

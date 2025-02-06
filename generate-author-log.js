@@ -553,6 +553,41 @@ async function generateAuthorLog(author, since = '', until = '') {
       metricsStream.write(`- Afternoon (12:00-16:59): ${metrics.timeDistribution.afternoon}%\n`);
       metricsStream.write(`- Evening (17:00-4:59): ${metrics.timeDistribution.evening}%\n`);
       
+      metricsStream.write('\n## Impact Analysis\n\n');
+      metricsStream.write('**Most Modified Source Files:**\n');
+      if (metrics.impactMetrics.topFiles.length > 0) {
+        metrics.impactMetrics.topFiles.forEach(({ file, changes }) => {
+          metricsStream.write(`- \`${file}\`: ${changes.toLocaleString()} changes\n`);
+        });
+      } else {
+        metricsStream.write('No source code changes found\n');
+      }
+      
+      metricsStream.write('\n**Directory Impact:**\n');
+      
+      // Helper function to write directory tree
+      function writeDirectoryTree(group, level = 0) {
+        const indent = '  '.repeat(level);
+        Array.from(group.entries()).forEach(([dirPath, { changes, percentage, subPaths }]) => {
+          const displayPath = dirPath.split('/').pop(); // Get last part of path
+          if (changes > 0) {
+            metricsStream.write(`${indent}- \`${displayPath}/\`: ${changes.toLocaleString()} changes (${percentage}%)\n`);
+          }
+          if (subPaths.size > 0) {
+            writeDirectoryTree(subPaths, level + 1);
+          }
+        });
+      }
+
+      // Write grouped directory structure
+      if (metrics.impactMetrics.groupedDirectories) {
+        writeDirectoryTree(metrics.impactMetrics.groupedDirectories);
+      } else {
+        metrics.impactMetrics.directoryImpact.forEach(({ directory, changes, percentage }) => {
+          metricsStream.write(`- \`${directory}\`: ${changes.toLocaleString()} changes (${percentage}%)\n`);
+        });
+      }
+      
       // Close metrics stream
       await new Promise((resolve, reject) => {
         metricsStream.end(err => {
@@ -777,7 +812,7 @@ Examples:
     const since = sinceArg ? sinceArg.split('=')[1] : '';
     const until = untilArg ? untilArg.split('=')[1] : '';
 
-    const { commitsFile, metricsFile } = await generateAuthorLog(author, since, until);
+    await generateAuthorLog(author, since, until);
   } catch (error) {
     if (error instanceof GitLogError) {
       console.error(`${colors.red}Error: ${error.message}${colors.reset}`);
@@ -789,6 +824,130 @@ Examples:
 }
 
 main();
+
+// File patterns to exclude from analysis
+const EXCLUDED_PATTERNS = [
+  /package-lock\.json$/,
+  /yarn\.lock$/,
+  /\.min\.(js|css)$/,
+  /\.(map|d\.ts)$/,
+  /^node_modules\//,
+  /^dist\//,
+  /^build\//,
+  /^\.nx\//,
+  /^coverage\//,
+  /^\.next\//,
+  /^\.cache\//
+];
+
+// Source code file patterns
+const SOURCE_PATTERNS = [
+  /\.(js|jsx|ts|tsx)$/,
+  /\.(css|scss|sass|less|styl)$/,
+  /\.html?$/,
+  /\.(test|spec)\.(js|jsx|ts|tsx)$/,
+  /\.(md|mdx)$/
+];
+
+// Utility function to check if a file should be included in analysis
+function shouldIncludeFile(filePath) {
+  // Exclude files matching exclusion patterns
+  if (EXCLUDED_PATTERNS.some(pattern => pattern.test(filePath))) {
+    return false;
+  }
+  // Include only source code files
+  return SOURCE_PATTERNS.some(pattern => pattern.test(filePath));
+}
+
+// Utility function to group related paths
+function groupPaths(paths) {
+  const groups = new Map();
+  
+  paths.forEach(({ directory, changes, percentage }) => {
+    const parts = directory.split('/');
+    let currentPath = '';
+    let currentGroup = groups;
+
+    parts.forEach((part, index) => {
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+      if (index === parts.length - 1) {
+        // Leaf node with changes
+        if (!currentGroup.has(currentPath)) {
+          currentGroup.set(currentPath, { changes, percentage, subPaths: new Map() });
+        }
+      } else {
+        // Directory node
+        if (!currentGroup.has(currentPath)) {
+          currentGroup.set(currentPath, { changes: 0, percentage: 0, subPaths: new Map() });
+        }
+        currentGroup = currentGroup.get(currentPath).subPaths;
+      }
+    });
+  });
+
+  return groups;
+}
+
+// Utility function to analyze file impact from git stats
+function analyzeFileImpact(statsOutput) {
+  if (!statsOutput) return null;
+
+  const lines = statsOutput.split('\n');
+  const fileStats = new Map(); // Track changes per file
+  const directoryStats = new Map(); // Track changes per directory
+
+  // Skip the last line which is the summary
+  for (let i = 0; i < lines.length - 1; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    // Match file stats line, e.g. "src/components/App.js | 10 +++++-----"
+    const fileMatch = line.match(/^(.+?)\s+\|\s+(\d+)/);
+    if (fileMatch) {
+      const [, filePath, changes] = fileMatch;
+      
+      // Skip excluded files and non-source files
+      if (!shouldIncludeFile(filePath)) continue;
+      
+      const changesNum = parseInt(changes, 10);
+      
+      // Track file changes
+      fileStats.set(filePath, (fileStats.get(filePath) || 0) + changesNum);
+      
+      // Track directory changes
+      const directory = path.dirname(filePath);
+      directoryStats.set(directory, (directoryStats.get(directory) || 0) + changesNum);
+    }
+  }
+
+  // Calculate total changes after filtering
+  const totalChanges = Array.from(directoryStats.values()).reduce((a, b) => a + b, 0);
+  if (totalChanges === 0) return null;
+
+  // Convert to sorted arrays
+  const sortedFiles = Array.from(fileStats.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5); // Top 5 most modified files
+
+  // Calculate directory percentages based on total changes
+  const maxChanges = Math.max(...directoryStats.values());
+  const sortedDirectories = Array.from(directoryStats.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([dir, changes]) => ({
+      directory: dir,
+      changes,
+      percentage: ((changes / maxChanges) * 100).toFixed(1)
+    }));
+
+  // Group directories by common paths
+  const groupedDirectories = groupPaths(sortedDirectories);
+
+  return {
+    topFiles: sortedFiles,
+    directoryImpact: sortedDirectories,
+    groupedDirectories
+  };
+}
 
 // Utility function to parse git stats output
 function parseGitStats(statsOutput) {
@@ -821,7 +980,7 @@ function parseGitStats(statsOutput) {
 
 // Calculate velocity metrics from commits
 async function calculateVelocityMetrics(commits) {
-  if (!commits || !commits.length) {
+  if (!commits || !commits.length || commits.length === 0) {
     return {
       totalLinesChanged: 0,
       averageCommitSize: 0,
@@ -830,9 +989,18 @@ async function calculateVelocityMetrics(commits) {
         morning: 0,    // 5:00 - 11:59
         afternoon: 0,  // 12:00 - 16:59
         evening: 0     // 17:00 - 4:59
+      },
+      impactMetrics: {
+        topFiles: [],
+        directoryImpact: []
       }
     };
   }
+
+  const fileImpactData = {
+    topFiles: new Map(),
+    directoryImpact: new Map()
+  };
 
   let totalChanges = 0;
   const timeDistribution = { morning: 0, afternoon: 0, evening: 0 };
@@ -842,8 +1010,22 @@ async function calculateVelocityMetrics(commits) {
     // Get commit details for stats
     const details = await getCommitDetails(commit.hash);
     const stats = parseGitStats(details);
+    const impact = analyzeFileImpact(details);
+    
     if (stats) {
       totalChanges += stats.totalChanges;
+    }
+
+    if (impact) {
+      // Aggregate file changes
+      impact.topFiles.forEach(([file, changes]) => {
+        fileImpactData.topFiles.set(file, (fileImpactData.topFiles.get(file) || 0) + changes);
+      });
+
+      // Aggregate directory changes
+      impact.directoryImpact.forEach(({ directory, changes }) => {
+        fileImpactData.directoryImpact.set(directory, (fileImpactData.directoryImpact.get(directory) || 0) + changes);
+      });
     }
 
     // Analyze commit time
@@ -874,6 +1056,19 @@ async function calculateVelocityMetrics(commits) {
       morning: +((timeDistribution.morning / commits.length) * 100).toFixed(1),
       afternoon: +((timeDistribution.afternoon / commits.length) * 100).toFixed(1),
       evening: +((timeDistribution.evening / commits.length) * 100).toFixed(1)
+    },
+    impactMetrics: {
+      topFiles: Array.from(fileImpactData.topFiles.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([file, changes]) => ({ file, changes })),
+      directoryImpact: Array.from(fileImpactData.directoryImpact.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([directory, changes]) => ({
+          directory,
+          changes,
+          percentage: ((changes / totalChanges) * 100).toFixed(1)
+        }))
     }
   };
 
