@@ -1,4 +1,4 @@
-const { GitLogError } = require('../GitLogError');
+const GitLogError = require('../GitLogError');
 
 describe('GitLogError', () => {
   it('should create error with correct properties', () => {
@@ -8,4 +8,4 @@ describe('GitLogError', () => {
     expect(error.code).toBe('TEST_CODE');
     expect(error.details).toEqual({ detail: 'test' });
   });
-}); 
+});

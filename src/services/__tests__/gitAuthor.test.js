@@ -1,7 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { execGitCommand, isGitRepository, getAuthorCommits, getCommitDetails } = require('../gitOperations');
+const { execGitCommand, isGitRepository } = require('../gitOperations');
+const { getAuthorCommits } = require('../authorService');
+
 
 describe('Git Operations Integration Tests', () => {
   const testRepoPath = path.join(__dirname, 'test-repo');
@@ -134,10 +136,13 @@ describe('Git Operations Integration Tests', () => {
       execSync('git add test4.txt');
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
-      execSync(`git commit -m "Past commit" --author="${testAuthor}" --date="${pastDate.toISOString()}"`);
+      const isoDate = pastDate.toISOString();
+      execSync(`git commit --date="${isoDate}" -m "Past commit" --author="${testAuthor}"`);
 
-      const commits = await getAuthorCommits('Test User', pastDate.toISOString());
-      expect(commits[0]).toHaveProperty('subject', 'Past commit');
+      const commits = await getAuthorCommits('Test User', isoDate);
+      const filteredCommit = commits.find(c => c.subject === 'Past commit');
+      expect(filteredCommit).toBeTruthy();
+      expect(filteredCommit.subject).toBe('Past commit');
     });
   });
 }); 

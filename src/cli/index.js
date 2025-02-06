@@ -214,6 +214,7 @@ Examples:
     }
 
     if (!args.includes('--skip-fetch')) {
+      console.log(`${colors.blue}Fetching latest changes...${colors.reset}`);
       await fetchLatestChanges();
     }
 

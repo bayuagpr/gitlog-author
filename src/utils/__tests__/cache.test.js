@@ -1,4 +1,4 @@
-const { LRUCache } = require('../cache');
+const LRUCache = require('../cache');
 
 describe('LRUCache', () => {
   let cache;
@@ -57,4 +57,4 @@ describe('LRUCache', () => {
     expect(cache.get('key2')).toBe('new-value2');
     expect(cache.get('key3')).toBe('value3');
   });
-}); 
+});
