@@ -1,8 +1,18 @@
+/**
+ * @module metricsService
+ * @description Service for calculating and analyzing git commit metrics, including velocity, impact, and file statistics
+ */
+
 const path = require('path');
 const { EXCLUDED_PATTERNS, SOURCE_PATTERNS } = require('../constants');
 const { getCommitDetails } = require('./authorService');
 const { calculateTypeMetrics } = require('./commitTypeService');
 
+/**
+ * Determines if a file should be included in metrics calculations based on predefined patterns
+ * @param {string} filePath - Path of the file to check
+ * @returns {boolean} True if file should be included, false otherwise
+ */
 function shouldIncludeFile(filePath) {
   if (EXCLUDED_PATTERNS.some(pattern => pattern.test(filePath))) {
     return false;
@@ -10,6 +20,11 @@ function shouldIncludeFile(filePath) {
   return SOURCE_PATTERNS.some(pattern => pattern.test(filePath));
 }
 
+/**
+ * Groups file paths into a hierarchical structure with their associated metrics
+ * @param {Array<{directory: string, changes: number, percentage: string}>} paths - Array of directory paths with their metrics
+ * @returns {Map} Hierarchical map of directories and their metrics
+ */
 function groupPaths(paths) {
   const groups = new Map();
   
@@ -36,6 +51,14 @@ function groupPaths(paths) {
   return groups;
 }
 
+/**
+ * Analyzes the impact of file changes from git stats output
+ * @param {string} statsOutput - Raw git stats output
+ * @returns {Object|null} Object containing file impact analysis or null if invalid input
+ * @property {Array<[string, number]>} topFiles - Top modified files with change counts
+ * @property {Array<{directory: string, changes: number, percentage: string}>} directoryImpact - Impact metrics by directory
+ * @property {Map} groupedDirectories - Hierarchical structure of directory impacts
+ */
 function analyzeFileImpact(statsOutput) {
   if (!statsOutput) return null;
 
@@ -86,6 +109,15 @@ function analyzeFileImpact(statsOutput) {
   };
 }
 
+/**
+ * Parses git stats output into structured format
+ * @param {string} statsOutput - Raw git stats output
+ * @returns {Object|null} Parsed stats object or null if invalid input
+ * @property {number} filesChanged - Number of files modified
+ * @property {number} insertions - Number of lines added
+ * @property {number} deletions - Number of lines deleted
+ * @property {number} totalChanges - Total number of lines changed
+ */
 function parseGitStats(statsOutput) {
   if (!statsOutput) return null;
 
@@ -114,6 +146,19 @@ function parseGitStats(statsOutput) {
   return stats;
 }
 
+/**
+ * Calculates comprehensive velocity metrics for a set of commits
+ * @param {Array<{hash: string, subject: string, date: string}>} commits - Array of commit objects
+ * @param {string} author - Author name/email to analyze
+ * @returns {Promise<Object>} Comprehensive metrics object
+ * @property {number} totalLinesChanged - Total number of lines modified
+ * @property {number} averageCommitSize - Average changes per commit
+ * @property {number} commitsPerDay - Average commits per day
+ * @property {Object} timeDistribution - Commit distribution across day periods
+ * @property {Object} impactMetrics - File and directory impact analysis
+ * @property {Object} typeMetrics - Commit type analysis
+ * @property {Object|null} trends - Trend analysis (if available)
+ */
 async function calculateVelocityMetrics(commits, author) {
   if (!commits || !commits.length || commits.length === 0) {
     return {

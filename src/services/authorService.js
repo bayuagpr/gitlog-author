@@ -1,3 +1,8 @@
+/**
+ * @module authorService
+ * @description Service for retrieving and analyzing git commit author information and their contributions
+ */
+
 const { execGitCommand } = require('./gitOperations');
 const LRUCache = require('../utils/cache');
 const GitLogError = require('../models/GitLogError');
@@ -5,11 +10,21 @@ const GitLogError = require('../models/GitLogError');
 // Cache for commit messages
 const commitCache = new LRUCache(1000);
 
+/**
+ * Validates if a date string is in a valid format and safe from shell injection
+ * @param {string} date - Date string to validate
+ * @returns {boolean} True if date format is valid and safe
+ */
 function isValidDateFormat(date) {
   return date.trim().length > 0 && 
     !date.match(/[<>|&;$]/); // Basic security check for shell injection
 }
 
+/**
+ * Retrieves all authors who have contributed to the repository
+ * @returns {Promise<Array<{commits: number, name: string, email: string}>>} Array of author objects with their commit counts
+ * @throws {GitLogError} If git operation fails or returns invalid data
+ */
 async function getAllAuthors() {
   try {
     const output = await execGitCommand('git', [
@@ -52,6 +67,14 @@ async function getAllAuthors() {
   }
 }
 
+/**
+ * Retrieves all commits by a specific author within an optional date range
+ * @param {string} author - Author name or email to search for
+ * @param {string} [since=''] - Optional start date for commit range
+ * @param {string} [until=''] - Optional end date for commit range
+ * @returns {Promise<Array<{hash: string, date: string, subject: string, body: string}>>} Array of commit objects
+ * @throws {GitLogError} If author is invalid, date format is invalid, or git operation fails
+ */
 async function getAuthorCommits(author, since = '', until = '') {
   try {
     if (!author?.trim()) {
@@ -190,6 +213,12 @@ async function getAuthorCommits(author, since = '', until = '') {
   }
 }
 
+/**
+ * Retrieves detailed information about a specific commit
+ * @param {string} hash - Commit hash to get details for
+ * @returns {Promise<string>} Detailed commit information including stats
+ * @throws {GitLogError} If hash is invalid, commit not found, or git operation fails
+ */
 async function getCommitDetails(hash) {
     try {
       if (!hash?.match(/^[0-9a-f]+$/i)) {

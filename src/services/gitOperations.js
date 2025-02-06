@@ -1,6 +1,20 @@
+/**
+ * @module gitOperations
+ * @description Core service for executing git commands and managing git repository operations
+ */
+
 const { spawn } = require('child_process');
 const GitLogError = require('../models/GitLogError');
 
+/**
+ * Executes a git command with the provided arguments
+ * @async
+ * @param {string} command - The git command to execute (must be 'git')
+ * @param {Array<string>} args - Array of command arguments
+ * @param {Object} [options={}] - Spawn options for child process
+ * @returns {Promise<string>} Command output
+ * @throws {GitLogError} If command execution fails, git is not found, or repository errors occur
+ */
 async function execGitCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     let output = '';
@@ -84,6 +98,12 @@ async function execGitCommand(command, args, options = {}) {
   });
 }
 
+/**
+ * Checks if the current directory is within a valid git repository with commits
+ * @async
+ * @returns {Promise<boolean>} True if directory is in a valid git repository
+ * @throws {GitLogError} If repository exists but is empty or other git errors occur
+ */
 async function isGitRepository() {
   try {
     // Check if we're in a git repository
@@ -126,6 +146,11 @@ async function isGitRepository() {
   }
 }
 
+/**
+ * Attempts to fetch latest changes from all remotes
+ * @async
+ * @returns {Promise<boolean>} True if fetch was successful, false otherwise
+ */
 async function fetchLatestChanges() {
   try {
     await execGitCommand('git', ['fetch', '--all']);

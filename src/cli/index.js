@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 
+/**
+ * @module cli
+ * @description Command-line interface for generating git contribution reports and metrics
+ */
+
 const path = require('path');
 const { colors } = require('../constants');
 const { isGitRepository, fetchLatestChanges } = require('../services/gitOperations');
@@ -9,6 +14,35 @@ const { calculateVelocityMetrics } = require('../services/metricsService');
 const { sanitizeFilename, createWriteStream } = require('../utils/fileUtils');
 const GitLogError = require('../models/GitLogError');
 
+/**
+ * Recursively writes directory impact tree to metrics file
+ * @private
+ * @param {Map} group - Directory group to write
+ * @param {number} [level=0] - Current indentation level
+ */
+function writeDirectoryTree(group, level = 0) {
+    const indent = '  '.repeat(level);
+    Array.from(group.entries()).forEach(([dirPath, { changes, percentage, subPaths }]) => {
+      const displayPath = dirPath.split('/').pop();
+      if (changes > 0) {
+        metricsStream.write(`${indent}- \`${displayPath}/\`: ${changes.toLocaleString()} changes (${percentage}%)\n`);
+      }
+      if (subPaths.size > 0) {
+        writeDirectoryTree(subPaths, level + 1);
+      }
+    });
+  }
+
+/**
+ * Generates a trend analysis log for a specific author
+ * @async
+ * @param {string} author - Author name or email to analyze
+ * @param {string} period - Time period for trend analysis ('daily', 'weekly', or 'monthly')
+ * @param {string} [since=''] - Start date for analysis
+ * @param {string} [until=''] - End date for analysis
+ * @returns {Promise<{trendFile: string}>} Path to generated trend file
+ * @throws {GitLogError} If repository validation fails or trend generation fails
+ */
 async function generateTrendLog(author, period, since = '', until = '') {
   try {
     if (!await isGitRepository()) {
@@ -173,6 +207,15 @@ async function generateTrendLog(author, period, since = '', until = '') {
   }
 }
 
+/**
+ * Generates a detailed log of an author's git contributions
+ * @async
+ * @param {string} author - Author name or email to analyze
+ * @param {string} [since=''] - Start date for analysis
+ * @param {string} [until=''] - End date for analysis
+ * @returns {Promise<void>}
+ * @throws {GitLogError} If repository validation fails or log generation fails
+ */
 async function generateAuthorLog(author, since = '', until = '') {
   try {
     if (!await isGitRepository()) {
@@ -248,20 +291,6 @@ async function generateAuthorLog(author, since = '', until = '') {
       }
       
       metricsStream.write('\n**Directory Impact:**\n');
-      
-      // Helper function to write directory tree
-      function writeDirectoryTree(group, level = 0) {
-        const indent = '  '.repeat(level);
-        Array.from(group.entries()).forEach(([dirPath, { changes, percentage, subPaths }]) => {
-          const displayPath = dirPath.split('/').pop();
-          if (changes > 0) {
-            metricsStream.write(`${indent}- \`${displayPath}/\`: ${changes.toLocaleString()} changes (${percentage}%)\n`);
-          }
-          if (subPaths.size > 0) {
-            writeDirectoryTree(subPaths, level + 1);
-          }
-        });
-      }
 
       if (metrics.impactMetrics.groupedDirectories) {
         writeDirectoryTree(metrics.impactMetrics.groupedDirectories);
@@ -361,6 +390,13 @@ async function generateAuthorLog(author, since = '', until = '') {
   }
 }
 
+
+
+/**
+ * Main CLI entry point
+ * @async
+ * @returns {Promise<void>}
+ */
 async function main() {
   try {
     const args = process.argv.slice(2);
