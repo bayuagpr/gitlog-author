@@ -4,9 +4,174 @@ const path = require('path');
 const { colors } = require('../constants');
 const { isGitRepository, fetchLatestChanges } = require('../services/gitOperations');
 const { getAllAuthors, getAuthorCommits, getCommitDetails } = require('../services/authorService');
+const { getRollingTrends } = require('../services/trendService');
 const { calculateVelocityMetrics } = require('../services/metricsService');
 const { sanitizeFilename, createWriteStream } = require('../utils/fileUtils');
 const GitLogError = require('../models/GitLogError');
+
+async function generateTrendLog(author, period, since = '', until = '') {
+  try {
+    if (!await isGitRepository()) {
+      throw new GitLogError(
+        'Not a git repository. Please run this command from within a git repository.',
+        'NOT_GIT_REPO'
+      );
+    }
+
+    console.log(`${colors.blue}Generating ${period} trend for author: ${colors.bright}${author}${colors.reset}`);
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const outputDir = path.join(process.cwd(), 'git-logs');
+    const trendFile = path.join(outputDir, `${sanitizeFilename(author)}_${period}_trend_${timestamp}.md`);
+    const trendStream = createWriteStream(trendFile);
+
+    // Write header
+    trendStream.write(`# ${period.charAt(0).toUpperCase() + period.slice(1)} Contribution Trend for ${author}\n\n`);
+    trendStream.write(`Generated on: ${new Date().toLocaleString('en-US', { timeZoneName: 'short' })}\n\n`);
+
+    if (since || until) {
+      trendStream.write('## Date Range\n');
+      if (since) trendStream.write(`From: ${since}\n`);
+      if (until) trendStream.write(`To: ${until}\n`);
+      trendStream.write('\n');
+    }
+
+    // Calculate the end date (either specified 'until' or current date)
+    const endDate = until ? new Date(until) : new Date();
+    
+    // Calculate the start date based on period if 'since' is not specified
+    let startDate;
+    if (since) {
+      startDate = new Date(since);
+    } else {
+      startDate = new Date(endDate);
+      switch (period) {
+        case 'daily':
+          startDate.setDate(startDate.getDate() - 6); // Last 7 days (including today)
+          break;
+        case 'weekly':
+          startDate.setDate(startDate.getDate() - (4 * 7) + 1); // Last 4 weeks
+          break;
+        case 'monthly':
+          startDate.setMonth(startDate.getMonth() - 5); // Last 6 months
+          break;
+        default:
+          throw new GitLogError(`Invalid trend period: ${period}. Must be one of: daily, weekly, monthly`, 'INVALID_TREND_PERIOD');
+      }
+    }
+
+    // Validate dates
+    if (startDate > endDate) {
+      throw new GitLogError(
+        'Invalid date range: start date must be before end date',
+        'INVALID_DATE_RANGE'
+      );
+    }
+
+    // Calculate number of periods between dates
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const daysDiff = Math.ceil((endDate - startDate) / msPerDay);
+    let periodCount;
+    
+    switch (period) {
+      case 'daily':
+        periodCount = daysDiff;
+        break;
+      case 'weekly':
+        periodCount = Math.ceil(daysDiff / 7);
+        break;
+      case 'monthly':
+        // Approximate months by dividing days by average month length
+        periodCount = Math.ceil(daysDiff / 30.44);
+        break;
+    }
+
+    const trends = await getRollingTrends(author, period, periodCount, endDate);
+
+    // Calculate overview metrics
+    const totalCommits = trends.reduce((sum, t) => sum + t.metrics.commitCount, 0);
+    const mostActive = trends.reduce((max, t) => t.metrics.commitCount > max.count ? 
+      { date: t.startDate, count: t.metrics.commitCount } : max, 
+      { date: '', count: 0 });
+    
+    const allTypes = trends.reduce((types, t) => {
+      Object.entries(t.metrics.commitTypes).forEach(([type, count]) => {
+        types[type] = (types[type] || 0) + count;
+      });
+      return types;
+    }, {});
+    
+    const primaryType = Object.entries(allTypes)
+      .sort((a, b) => b[1] - a[1])[0];
+    
+    // Write overview section
+    trendStream.write('## Overview\n');
+    trendStream.write(`- Period: ${new Date(startDate).toLocaleDateString('en-US')} to ${new Date(endDate).toLocaleDateString('en-US')}\n`);
+    trendStream.write(`- Total Commits: ${totalCommits}\n`);
+    if (mostActive.count > 0) {
+      trendStream.write(`- Most Active ${period === 'daily' ? 'Day' : period === 'weekly' ? 'Week' : 'Month'}: ${new Date(mostActive.date).toLocaleDateString('en-US')} (${mostActive.count} commits)\n`);
+    }
+    if (primaryType) {
+      const percentage = Math.round((primaryType[1] / totalCommits) * 100);
+      trendStream.write(`- Primary Contribution Type: ${primaryType[0]} (${percentage}%)\n`);
+    }
+    trendStream.write('\n');
+
+    // Write detailed breakdown
+    trendStream.write(`## ${period.charAt(0).toUpperCase() + period.slice(1)} Breakdown\n\n`);
+
+    for (const trend of trends) {
+      const date = new Date(trend.startDate);
+      const dateStr = period === 'daily' 
+        ? date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+        : period === 'weekly'
+          ? `Week of ${date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`
+          : date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+
+      trendStream.write(`### ${dateStr}\n`);
+      trendStream.write(`Commits: ${trend.metrics.commitCount}\n\n`);
+
+      if (trend.metrics.commitCount > 0) {
+        // Time distribution
+        trendStream.write('Time Distribution:\n');
+        const { morning, afternoon, evening } = trend.metrics.timeDistribution;
+        trendStream.write(`- 🌅 Morning (5:00-11:59): ${morning}%\n`);
+        trendStream.write(`- 🌞 Afternoon (12:00-16:59): ${afternoon}%\n`);
+        trendStream.write(`- 🌙 Evening (17:00-4:59): ${evening}%\n\n`);
+
+        // Commit types
+        if (Object.keys(trend.metrics.commitTypes).length > 0) {
+          trendStream.write('Commit Types:\n');
+          Object.entries(trend.metrics.commitTypes)
+            .sort((a, b) => b[1] - a[1])
+            .forEach(([type, count]) => {
+              trendStream.write(`- ${type}: ${count}\n`);
+            });
+          trendStream.write('\n');
+        }
+      }
+    }
+
+    await new Promise((resolve, reject) => {
+      trendStream.end(err => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    console.log(`${colors.green}✓ Generated trend file: ${colors.reset}${trendFile}`);
+    return { trendFile };
+  } catch (error) {
+    if (error instanceof GitLogError) {
+      throw error;
+    }
+    throw new GitLogError(
+      'Error generating trend log: ' + error.message,
+      'TREND_GENERATION_FAILED',
+      { error: error.message }
+    );
+  }
+}
 
 async function generateAuthorLog(author, since = '', until = '') {
   try {
@@ -204,7 +369,7 @@ async function main() {
       console.log(`
 ${colors.bright}Generate Git Log by Author${colors.reset}
 
-Usage: gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics]
+Usage: gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>]
 
 Arguments:
   author         Author name or email to filter commits by
@@ -216,6 +381,7 @@ Options:
   --list-authors Show all authors in the repository
   --skip-fetch   Skip fetching latest changes from remote
   --no-metrics   Skip productivity metrics calculation
+  --trend=<period> Generate contribution trend report (daily, weekly, or monthly)
   --help, -h     Show this help message
 
 Examples:
@@ -224,6 +390,9 @@ Examples:
   gitlog-author "John Doe" --since="2023-01-01" --until="2023-12-31"
   gitlog-author "John" --verify
   gitlog-author --list-authors
+  gitlog-author "John Doe" --trend=daily    # Show last 7 days trends
+  gitlog-author "John Doe" --trend=weekly   # Show last 4 weeks trends
+  gitlog-author "John Doe" --trend=monthly  # Show last 6 months trends
       `);
       return;
     }
@@ -328,11 +497,23 @@ Examples:
     const author = args[0];
     const sinceArg = args.find(arg => arg.startsWith('--since='));
     const untilArg = args.find(arg => arg.startsWith('--until='));
+    const trendArg = args.find(arg => arg.startsWith('--trend='));
 
     const since = sinceArg ? sinceArg.split('=')[1] : '';
     const until = untilArg ? untilArg.split('=')[1] : '';
+    const trend = trendArg ? trendArg.split('=')[1] : '';
 
-    await generateAuthorLog(author, since, until);
+    if (trend) {
+      if (!['daily', 'weekly', 'monthly'].includes(trend)) {
+        throw new GitLogError(
+          'Invalid trend period. Must be one of: daily, weekly, monthly',
+          'INVALID_TREND_PERIOD'
+        );
+      }
+      await generateTrendLog(author, trend, since, until);
+    } else {
+      await generateAuthorLog(author, since, until);
+    }
   } catch (error) {
     if (error instanceof GitLogError) {
       console.error(`${colors.red}Error: ${error.message}${colors.reset}`);
@@ -343,4 +524,4 @@ Examples:
   }
 }
 
-main(); 
+main();

@@ -101,9 +101,9 @@ function parseGitStats(statsOutput) {
     totalChanges: 0
   };
 
-  const filesMatch = summaryLine.match(/(\d+) files? changed/);
-  const insertionsMatch = summaryLine.match(/(\d+) insertions?\(\+\)/);
-  const deletionsMatch = summaryLine.match(/(\d+) deletions?\(-\)/);
+  const filesMatch = summaryLine.match(/(\d+)\s+files?\s+changed/);
+  const insertionsMatch = summaryLine.match(/(\d+)\s+insertions?\(\+\)/);
+  const deletionsMatch = summaryLine.match(/(\d+)\s+deletions?\(-\)/);
 
   if (filesMatch) stats.filesChanged = parseInt(filesMatch[1], 10);
   if (insertionsMatch) stats.insertions = parseInt(insertionsMatch[1], 10);
@@ -114,7 +114,7 @@ function parseGitStats(statsOutput) {
   return stats;
 }
 
-async function calculateVelocityMetrics(commits) {
+async function calculateVelocityMetrics(commits, author) {
   if (!commits || !commits.length || commits.length === 0) {
     return {
       totalLinesChanged: 0,
@@ -132,7 +132,8 @@ async function calculateVelocityMetrics(commits) {
       typeMetrics: {
         typeBreakdown: [],
         primaryContributionType: 'UNKNOWN'
-      }
+      },
+      trends: null
     };
   }
 
@@ -174,7 +175,8 @@ async function calculateVelocityMetrics(commits) {
     }
 
     const commitDate = new Date(commit.date);
-    const hour = commitDate.getHours();
+    // Convert UTC to UTC+8
+    const hour = (commitDate.getUTCHours() + 8) % 24;
     
     if (hour >= 5 && hour < 12) {
       timeDistribution.morning++;
@@ -192,6 +194,7 @@ async function calculateVelocityMetrics(commits) {
 
   // Calculate type metrics
   const typeMetrics = calculateTypeMetrics(commitsWithFiles);
+
 
   const metrics = {
     totalLinesChanged: totalChanges,
@@ -215,7 +218,8 @@ async function calculateVelocityMetrics(commits) {
           percentage: ((changes / totalChanges) * 100).toFixed(1)
         }))
     },
-    typeMetrics
+    typeMetrics,
+    trends: null
   };
 
   return metrics;

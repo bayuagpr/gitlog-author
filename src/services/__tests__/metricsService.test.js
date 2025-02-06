@@ -132,7 +132,8 @@ describe('Metrics Service', () => {
         typeMetrics: {
           typeBreakdown: [],
           primaryContributionType: 'UNKNOWN'
-        }
+        },
+        trends: null
       });
     });
 

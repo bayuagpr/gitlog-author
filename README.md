@@ -66,6 +66,14 @@ Ever wondered why senior developers insist on meaningful commit messages? This t
 - Handles special characters and emoji in commit messages
 - Smart author name matching
 - AI friendly output (also depend on how much commits you have because it will impact the context window of the AI)
+- Trend analysis:
+  - Daily trends (last 7 days)
+  - Weekly trends (last 4 weeks)
+  - Monthly trends (last 6 months)
+  - Time-of-day distribution
+  - Commit type patterns
+  - Productivity patterns over time
+  - Focus area shifts
 
 ## How It Works
 
@@ -81,6 +89,7 @@ This tool:
    - Commit messages and timestamps
    - File changes (without content diffs)
    - Commit hashes and descriptions
+   - Trend analysis and patterns
 6. Implements safety measures:
    - Sanitizes output to prevent injection
    - Validates git commands
@@ -110,7 +119,7 @@ npm install -g .
 ## Usage
 
 ```bash
-gitlog-author <author> [--since=<date>] [--until=<date>]
+gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>]
 ```
 
 ### Arguments
@@ -118,6 +127,11 @@ gitlog-author <author> [--since=<date>] [--until=<date>]
 - `author`: Author name or email to filter commits by
 - `--since`: Show commits more recent than a specific date (optional)
 - `--until`: Show commits older than a specific date (optional)
+- `--verify`: Verify author existence and show matching authors
+- `--list-authors`: Show all authors in the repository
+- `--skip-fetch`: Skip fetching latest changes from remote
+- `--no-metrics`: Skip productivity metrics calculation
+- `--trend=<period>`: Generate contribution trend report (daily, weekly, or monthly)
 - `--help`, `-h`: Show help message
 
 ### Examples
@@ -134,6 +148,17 @@ gitlog-author "John Doe" --since="1 week ago" --until="today"
 
 # Using ISO dates
 gitlog-author "John Doe" --since="2023-01-01" --until="2023-12-31"
+
+# Verify author existence
+gitlog-author "John" --verify
+
+# List all authors
+gitlog-author --list-authors
+
+# Generate trend reports
+gitlog-author "John Doe" --trend=daily    # Show last 7 days trends
+gitlog-author "John Doe" --trend=weekly   # Show last 4 weeks trends
+gitlog-author "John Doe" --trend=monthly  # Show last 6 months trends
 ```
 
 ### Date Formats
@@ -151,6 +176,11 @@ The script creates a Markdown file in the `git-logs` directory with:
 - File changes
 - Commit hashes
 - Full commit details (without the details of the diffs, only what files were changed)
+- Trend analysis and patterns:
+  - Daily/weekly/monthly contribution trends
+  - Time-of-day work patterns
+  - Focus area shifts
+  - Commit type distribution
 
 ## Output Example
 You can check the output example in the [output-example/output-example.md](/output-example/output-example.md) file
@@ -255,4 +285,4 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. 
+SOFTWARE.
