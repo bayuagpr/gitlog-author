@@ -153,7 +153,7 @@ The script creates a Markdown file in the `git-logs` directory with:
 - Full commit details (without the details of the diffs, only what files were changed)
 
 ## Output Example
-You can check the output example in the [output-example.md](output-example.md) file
+You can check the output example in the [output-example/output-example.md](/output-example/output-example.md) file
 
 ## Requirements
 

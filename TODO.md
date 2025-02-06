@@ -30,24 +30,15 @@
   - Description completeness
 
 ## Collaboration Metrics (Medium-High Confidence - 80%)
-- [ ] Co-authored commits tracking
-  - Count and analyze pair programming sessions
-  - Track collaboration patterns
-- [ ] Review interactions
-  - Track review requests and responses
-  - Analyze review feedback patterns
 - [ ] Cross-team collaboration analysis
   - Work on shared components
   - Inter-team code contributions
 
 ## Additional Features
 - [ ] Configurable time zones for commit time analysis
-- [ ] Custom metrics definition through configuration
 - [ ] Export metrics in different formats (JSON, CSV)
-- [ ] Interactive metrics visualization
 - [ ] Historical trend analysis
 - [ ] Team-level aggregated metrics
-- [ ] Customizable report templates
 
 ## Technical Improvements
 - [ ] Parallel processing optimization for large repositories
