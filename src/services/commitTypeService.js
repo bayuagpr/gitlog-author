@@ -53,13 +53,15 @@ const categorizeCommit = (commit) => {
     types.add('TEST');
   }
 
-  // If no types found, try file patterns
+  // If no types found from message, try to determine one type from file patterns
   if (types.size === 0) {
-    Object.entries(COMMIT_TYPES).forEach(([type, { filePatterns }]) => {
+    // Try to find the most specific matching type based on file patterns
+    for (const [type, { filePatterns }] of Object.entries(COMMIT_TYPES)) {
       if (matchesFilePatterns(files, filePatterns)) {
         types.add(type);
+        break; // Only use the first matching type
       }
-    });
+    }
   }
 
   return Array.from(types);
@@ -79,11 +81,14 @@ const calculateTypeMetrics = (commits) => {
     }
   });
 
-  // Calculate percentages based on total commits
+  // Calculate total type assignments
+  const totalTypeAssignments = Object.values(typeCounts).reduce((sum, count) => sum + count, 0);
+
+  // Calculate percentages based on total type assignments
   const typeBreakdown = Object.entries(typeCounts).map(([type, count]) => ({
     type,
     count,
-    percentage: ((count / commits.length) * 100).toFixed(2)
+    percentage: ((count / totalTypeAssignments) * 100).toFixed(2)
   }));
 
   // Sort by count and then alphabetically for consistent ordering
