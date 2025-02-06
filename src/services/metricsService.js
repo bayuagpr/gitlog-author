@@ -88,8 +88,8 @@ function analyzeFileImpact(statsOutput) {
 function parseGitStats(statsOutput) {
   if (!statsOutput) return null;
 
-  const lines = statsOutput.split('\n');
-  const summaryLine = lines.find(line => line.includes('files changed'));
+  const lines = statsOutput.trim().split('\n');
+  const summaryLine = lines.find(line => line.trim().includes('files changed'));
   
   if (!summaryLine) return null;
 
@@ -206,4 +206,4 @@ module.exports = {
   calculateVelocityMetrics,
   parseGitStats,
   analyzeFileImpact
-}; 
+};
