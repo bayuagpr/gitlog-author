@@ -63,46 +63,74 @@ Ever wondered why senior developers insist on meaningful commit messages? This t
 - Date range filtering with `--since` and `--until`
 - Detailed commit information including descriptions and file changes
 - Output in clean Markdown format
-- Handles special characters and emoji in commit messages
-- Smart author name matching
-- AI friendly output (also depend on how much commits you have because it will impact the context window of the AI)
-- Trend analysis:
+- Smart author name matching with `--verify` option
+- List all repository authors with `--list-authors`
+- Skip remote fetching with `--skip-fetch`
+- Optional productivity metrics (can be disabled with `--no-metrics`)
+- Trend analysis with `--trend=<period>`:
   - Daily trends (last 7 days)
   - Weekly trends (last 4 weeks)
   - Monthly trends (last 6 months)
-  - Time-of-day distribution
-  - Commit type patterns
-  - Productivity patterns over time
-  - Focus area shifts
+  - Time distribution (morning/afternoon/evening)
+  - Commit type categorization
+  - File and directory impact analysis
+- Safety features:
+  - No diff content included
+  - Sanitized filenames
+  - UTF-8 encoding
+  - Git command validation
 
 ## How It Works
 
-This tool:
-1. Executes git commands to fetch commits by author
-2. Uses smart author matching to find commits by:
-   - Exact name/email match
-   - Flexible name spacing
-   - Case-insensitive fuzzy matching
-3. Processes commits in batches to manage memory
-4. Caches commit details using LRU (Least Recently Used) cache
-5. Generates Markdown files with:
-   - Commit messages and timestamps
-   - File changes (without content diffs)
-   - Commit hashes and descriptions
-   - Trend analysis and patterns
-6. Implements safety measures:
-   - Sanitizes output to prevent injection
-   - Validates git commands
-   - Handles special characters and emoji
-   - Uses UTF-8 encoding
+This tool operates through several key steps:
 
-This tool operates locally using Git commands and does not send any data to third parties. However, if you use the generated logs with AI tools or any third party services:
+1. Repository Validation & Setup
+   - Verifies if current directory is a git repository
+   - Optionally fetches latest changes (unless `--skip-fetch` used)
+   - Creates output directory for logs
 
-- You are responsible for reviewing the logs for sensitive information before sharing them with any AI tools or services
-- You are aware that this git log author generator tool cannot detect or filter out secrets, credentials, or confidential information that may exist in your commit history
-- You should always verify the content of generated logs before uploading them to external services 
+2. Author Processing
+   - Smart author matching:
+     - Exact name/email match
+     - Case-insensitive search
+     - Partial name/email matching with `--verify`
+   - Lists all authors with commit counts via `--list-authors`
 
-The reason we don't include the diffs is that the file would be too large and it would be inefficient to generate the diffs. We want to minimize the possibility of exposing any sensitive information from your commit history.
+3. Data Collection
+   - Fetches commits by author within specified date range
+   - Processes commit metadata (messages, timestamps, hashes)
+   - Collects file change information (without content diffs)
+   - Caches commit details for performance
+
+4. Analysis & Metrics (when `--no-metrics` not used)
+   - Calculates code velocity metrics
+   - Analyzes time-of-day patterns
+   - Tracks directory impact
+   - Identifies most modified files
+   - Categorizes commit types
+
+5. Trend Analysis (with `--trend`)
+   - Generates period-based reports (daily/weekly/monthly)
+   - Calculates rolling trends
+   - Aggregates commit patterns
+   - Shows time distribution
+   - Identifies peak activity periods
+
+6. Output Generation
+   - Creates timestamped Markdown files
+   - Sanitizes all output content
+   - Handles UTF-8 encoding
+   - Formats data for readability
+   - Includes metadata and summaries
+
+Safety Measures:
+- No sensitive diff content included
+- File paths sanitized
+- Git commands validated
+- Error handling for invalid inputs
+- Memory-efficient batch processing
+
+The tool runs entirely locally using Git commands. No data is sent to external services. However, be cautious when sharing generated logs as they may contain sensitive information from commit messages or file paths.
 
 ## Installation
 
@@ -170,17 +198,44 @@ Supports various date formats:
 
 ## Output
 
-The script creates a Markdown file in the `git-logs` directory with:
+The script generates the following Markdown files in the `git-logs` directory:
+
+### 1. Commit Log File (`<author>_commits_<timestamp>.md`)
 - Commit messages and descriptions
 - Timestamps
-- File changes
+- File changes (without content diffs)
 - Commit hashes
-- Full commit details (without the details of the diffs, only what files were changed)
-- Trend analysis and patterns:
-  - Daily/weekly/monthly contribution trends
-  - Time-of-day work patterns
-  - Focus area shifts
-  - Commit type distribution
+
+### 2. Metrics File (`<author>_metrics_<timestamp>.md`) 
+Generated unless `--no-metrics` is specified:
+- Code Velocity
+  - Total lines changed
+  - Average changes per commit
+  - Commit frequency (commits per day)
+- Time Distribution (24-hour format)
+  - Morning (5:00-11:59)
+  - Afternoon (12:00-16:59)
+  - Evening (17:00-4:59)
+- Impact Analysis
+  - Most modified source files
+  - Directory impact breakdown
+
+### 3. Trend File (`<author>_<period>_trend_<timestamp>.md`)
+Generated when using `--trend=<period>`:
+- Overview section with:
+  - Total commits in period
+  - Most active day/week/month
+  - Primary contribution type
+- Detailed breakdown by period showing:
+  - Commit count
+  - Time distribution
+  - Commit types and counts
+
+All files include:
+- Generation timestamp
+- Date range (if specified)
+- UTF-8 encoding
+- Sanitized filenames
 
 ## Output Example
 You can check the output example in the [output-example/output-example.md](/output-example/output-example.md) file
