@@ -269,7 +269,7 @@ async function createReviewBranch(branchName, commits, startPoint = null) {
 
     // If multiple commits, use range syntax
     if (commits.length > 1) {
-      const [firstCommit, lastCommit] = [commits[0], commits[commits.length - 1]];
+      const [firstCommit, lastCommit] = [commits[commits.length - 1], commits[0]];
       console.log(`Cherry-picking commits from ${firstCommit} to ${lastCommit}`);
       await execGitCommand('git', ['cherry-pick', `${firstCommit}^..${lastCommit}`]);
     } else if (commits.length === 1) {
