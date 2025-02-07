@@ -18,20 +18,25 @@ const GitLogError = require('../models/GitLogError');
  * Recursively writes directory impact tree to metrics file
  * @private
  * @param {Map} group - Directory group to write
+ * @param {WriteStream} stream - Output stream
  * @param {number} [level=0] - Current indentation level
  */
-function writeDirectoryTree(group, level = 0) {
-    const indent = '  '.repeat(level);
-    Array.from(group.entries()).forEach(([dirPath, { changes, percentage, subPaths }]) => {
-      const displayPath = dirPath.split('/').pop();
-      if (changes > 0) {
-        metricsStream.write(`${indent}- \`${displayPath}/\`: ${changes.toLocaleString()} changes (${percentage}%)\n`);
-      }
-      if (subPaths.size > 0) {
-        writeDirectoryTree(subPaths, level + 1);
-      }
-    });
-  }
+function writeDirectoryTree(group, stream, level = 0) {
+  const indent = '  '.repeat(level);
+  const entries = Array.from(group.entries())
+    .sort((a, b) => b[1].changes - a[1].changes);
+
+  entries.forEach(([dirPath, { changes, percentage, subPaths }]) => {
+    const displayPath = dirPath.split('/').pop();
+    const prefix = level === 0 ? '📁' : '└─';
+    if (changes > 0) {
+      stream.write(`${indent}${prefix} \`${displayPath}/\` (${changes.toLocaleString()} changes, ${percentage}%)\n`);
+    }
+    if (subPaths.size > 0) {
+      writeDirectoryTree(subPaths, stream, level + 1);
+    }
+  });
+}
 
 /**
  * Generates a trend analysis log for a specific author
@@ -329,13 +334,13 @@ async function generateAuthorLog(author, since = '', until = '', includeDirs = [
       }
       
       metricsStream.write('\n**Directory Impact:**\n');
-
-      if (metrics.impactMetrics.groupedDirectories) {
-        writeDirectoryTree(metrics.impactMetrics.groupedDirectories);
+      if (metrics.impactMetrics.groupedDirectories && metrics.impactMetrics.groupedDirectories.size > 0) {
+        const totalChanges = Array.from(metrics.impactMetrics.groupedDirectories.values())
+          .reduce((sum, { changes }) => sum + changes, 0);
+        writeDirectoryTree(metrics.impactMetrics.groupedDirectories, metricsStream);
+        metricsStream.write(`\nTotal changes across directories: ${totalChanges.toLocaleString()}\n`);
       } else {
-        metrics.impactMetrics.directoryImpact.forEach(({ directory, changes, percentage }) => {
-          metricsStream.write(`- \`${directory}\`: ${changes.toLocaleString()} changes (${percentage}%)\n`);
-        });
+        metricsStream.write('No directory impact data available\n');
       }
 
       metricsStream.write('\n## Commit Type Analysis\n\n');

@@ -45,14 +45,20 @@ function shouldIncludeFile(filePath, includeDirs = [], excludeDirs = []) {
 }
 
 /**
- * Groups file paths into a hierarchical structure with their associated metrics
+ * Groups file paths into a hierarchical structure with their metrics
  * @param {Array<{directory: string, changes: number, percentage: string}>} paths - Array of directory paths with their metrics
  * @returns {Map} Hierarchical map of directories and their metrics
  */
 function groupPaths(paths) {
   const groups = new Map();
+  let totalChanges = 0;
   
-  paths.forEach(({ directory, changes, percentage }) => {
+  // First pass: calculate total changes
+  paths.forEach(({ changes }) => {
+    totalChanges += changes;
+  });
+  
+  paths.forEach(({ directory, changes }) => {
     const parts = directory.split('/');
     let currentPath = '';
     let currentGroup = groups;
@@ -61,12 +67,24 @@ function groupPaths(paths) {
       currentPath = currentPath ? `${currentPath}/${part}` : part;
       if (index === parts.length - 1) {
         if (!currentGroup.has(currentPath)) {
-          currentGroup.set(currentPath, { changes, percentage, subPaths: new Map() });
+          currentGroup.set(currentPath, { 
+            changes,
+            percentage: ((changes / totalChanges) * 100).toFixed(1),
+            subPaths: new Map() 
+          });
         }
       } else {
         if (!currentGroup.has(currentPath)) {
-          currentGroup.set(currentPath, { changes: 0, percentage: 0, subPaths: new Map() });
+          currentGroup.set(currentPath, { 
+            changes: 0,
+            percentage: '0.0',
+            subPaths: new Map() 
+          });
         }
+        // Accumulate changes up the tree
+        currentGroup.get(currentPath).changes += changes;
+        currentGroup.get(currentPath).percentage = 
+          ((currentGroup.get(currentPath).changes / totalChanges) * 100).toFixed(1);
         currentGroup = currentGroup.get(currentPath).subPaths;
       }
     });
@@ -288,7 +306,16 @@ async function calculateVelocityMetrics(commits, includeDirs = [], excludeDirs =
           directory,
           changes,
           percentage: ((changes / totalChanges) * 100).toFixed(1)
-        }))
+        })),
+      groupedDirectories: groupPaths(
+        Array.from(fileImpactData.directoryImpact.entries())
+          .sort((a, b) => b[1] - a[1])
+          .map(([directory, changes]) => ({
+            directory,
+            changes,
+            percentage: ((changes / totalChanges) * 100).toFixed(1)
+          }))
+      )
     },
     typeMetrics,
     trends: null

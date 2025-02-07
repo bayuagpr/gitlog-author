@@ -90,13 +90,6 @@ function getTimeOfDay(dateStr) {
   return 'evening';
 }
 
-function filterCommitsByPeriod(commits, startDate, endDate) {
-  return commits.filter(commit => {
-    const commitDate = new Date(commit.date);
-    return commitDate >= startDate && commitDate <= endDate;
-  });
-}
-
 async function calculateTrendMetrics(commits) {
   const timeDistribution = {
     morning: 0,
