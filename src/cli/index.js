@@ -61,9 +61,6 @@ Examples:
   gitlog-author "John Doe" --trend=monthly --exclude-dirs="core/backend,core/shared"  # Exclude some directories and show last 6 months trends
   gitlog-author "John Doe" --review  # Generate detailed code review report with risk assessment
   gitlog-author "John Doe" --review --since="1 week ago"  # Review code changes from the last week
-  gitlog-author "John Doe" --review --create-branch  # Review with accumulated changes in a branch
-  gitlog-author "John Doe" --review --create-branch --base-commit=abc123  # Review against specific base
-  gitlog-author "John Doe" --review --create-branch --no-cleanup  # Keep review branch after report
 
   `);
 }

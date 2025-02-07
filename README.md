@@ -78,10 +78,6 @@ Ever wondered why senior developers insist on meaningful commit messages? This t
   - File and directory impact analysis
 - Code review functionality with `--review`:
   - Detailed code review reports with risk assessment
-  - Create temporary review branches with `--create-branch`
-  - Custom branch naming with `--branch-name`
-  - Base commit comparison with `--base-commit`
-  - Optional branch cleanup control with `--no-cleanup`
 - Safety features:
   - No diff content included
   - Sanitized filenames
@@ -155,7 +151,7 @@ npm install -g .
 ## Usage
 
 ```bash
-gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>] [--review] [--create-branch] [--branch-name=<name>] [--base-commit=<hash>] [--no-cleanup] [--include-dirs=<dirs>] [--exclude-dirs=<dirs>]
+gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>] [--review] [--include-dirs=<dirs>] [--exclude-dirs=<dirs>]
 ```
 
 ### Arguments
@@ -169,10 +165,6 @@ gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metric
 - `--no-metrics`: Skip productivity metrics calculation
 - `--trend=<period>`: Generate contribution trend report (daily, weekly, or monthly)
 - `--review`: Generate detailed code review report with risk assessment
-- `--create-branch`: Create a temporary branch for accumulated review changes
-- `--branch-name=<name>`: Custom name for review branch (default: review/author/timestamp)
-- `--base-commit=<hash>`: Base commit to compare changes against (default: first commit's parent)
-- `--no-cleanup`: Keep the review branch after generating report (default: cleanup)
 - `--include-dirs=<dirs>`: Only include commits affecting these directories (comma-separated)
 - `--exclude-dirs=<dirs>`: Exclude commits affecting these directories (comma-separated)
 - `--help`, `-h`: Show help message
@@ -217,9 +209,6 @@ gitlog-author "John Doe" --trend=monthly --exclude-dirs="core/backend,core/share
 # Code review functionality
 gitlog-author "John Doe" --review  # Generate detailed code review report
 gitlog-author "John Doe" --review --since="1 week ago"  # Review code changes from the last week
-gitlog-author "John Doe" --review --create-branch  # Review with accumulated changes in a branch
-gitlog-author "John Doe" --review --create-branch --base-commit=abc123  # Review against specific base
-gitlog-author "John Doe" --review --create-branch --no-cleanup  # Keep review branch after report
 ```
 
 
@@ -306,8 +295,6 @@ Generated only when using `--review`:
   - Risk assessment
   - Code changes summary
   - File impact analysis
-  - Review branch details (if `--create-branch` used)
-  - Base commit comparison (if `--base-commit` specified)
 
 All files include:
 - Generation timestamp
