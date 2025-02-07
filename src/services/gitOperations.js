@@ -262,12 +262,13 @@ async function createReviewBranch(branchName, commits, startPoint = null) {
     const sortedCommits = [...commits].reverse();
     for (const commit of sortedCommits) {
       try {
-        await execGitCommand('git', ['cherry-pick', '--allow-empty', commit]);
+        await execGitCommand('git', ['cherry-pick', '--allow-empty', '--no-commit', commit]);
       } catch (cherryError) {
         // Abort cherry-pick and clean up on conflict
         await execGitCommand('git', ['cherry-pick', '--abort']);
         await cleanupReviewBranch(branchName, startPoint || 'main');
         throw new GitLogError(
+
           `Cherry-pick failed on commit ${commit}: ${cherryError.message}`,
           'CHERRY_PICK_CONFLICT',
           { commit, error: cherryError.message }
