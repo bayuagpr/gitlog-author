@@ -1,5 +1,11 @@
 # gitlog-author
 
+[![npm version](https://img.shields.io/npm/v/gitlog-author.svg)](https://www.npmjs.com/package/gitlog-author)
+[![npm downloads](https://img.shields.io/npm/dm/gitlog-author.svg)](https://www.npmjs.com/package/gitlog-author)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node Version](https://img.shields.io/node/v/gitlog-author)](https://nodejs.org)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/bayuagpr/gitlog-author/pulls)
+
 A powerful CLI tool to generate rich, author-focused Git commit logs with metrics and trends in Markdown format.
 
 ⚠️ **IMPORTANT DISCLAIMER**
