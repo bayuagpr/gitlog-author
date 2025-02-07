@@ -1,7 +1,7 @@
 const CommandHandler = require('./CommandHandler');
 const { colors } = require('../../constants');
-const { isGitRepository, getAllAuthors } = require('../../services/gitOperations');
-const { getAuthorCommits } = require('../../services/authorService');
+const { isGitRepository } = require('../../services/gitOperations');
+const { getAuthorCommits, getAllAuthors } = require('../../services/authorService');
 const GitLogError = require('../../models/GitLogError');
 
 /**

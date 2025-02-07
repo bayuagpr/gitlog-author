@@ -1,6 +1,7 @@
 const CommandHandler = require('./CommandHandler');
 const { colors } = require('../../constants');
-const { isGitRepository, getAllAuthors } = require('../../services/gitOperations');
+const { isGitRepository } = require('../../services/gitOperations');
+const { getAllAuthors } = require('../../services/authorService');
 const GitLogError = require('../../models/GitLogError');
 
 /**
@@ -8,6 +9,15 @@ const GitLogError = require('../../models/GitLogError');
  * @description Handles listing of repository authors
  */
 class ListCommand extends CommandHandler {
+  /**
+   * Validate command arguments
+   * @param {Object} args - Command arguments
+   * @returns {boolean} - True if validation passes
+   */
+  validateArgs(args) {
+    return true; // No arguments needed for list command
+  }
+
   /**
    * Execute the list command
    */
