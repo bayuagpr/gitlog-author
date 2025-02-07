@@ -22,6 +22,8 @@ class ReviewCommand extends CommandHandler {
    * @param {Object} [args.since='1 day ago'] - Start date for commit range
    * @param {Object} [args.until='now'] - End date for commit range
    * @param {number} [args.context=5] - Number of lines of context to show in diffs
+   * @param {string} [args.include-dirs] - Comma-separated list of directories to include
+   * @param {string} [args.exclude-dirs] - Comma-separated list of directories to exclude
    */
   constructor(args) {
     super(args);
@@ -30,6 +32,8 @@ class ReviewCommand extends CommandHandler {
     this.until = this.getArg('until', 'now');
     this.maxDiffContext = parseInt(this.getArg('context', '5'), 10);
     this.useStream = this.getArg('stream', 'auto'); // 'auto', 'true', or 'false'
+    this.includeDirs = this.getDirList('include-dirs');
+    this.excludeDirs = this.getDirList('exclude-dirs');
     
     // Initialize services
     this.writer = new ReportWriter();
@@ -45,6 +49,13 @@ class ReviewCommand extends CommandHandler {
   validateArgs() {
     if (!this.author) {
       throw new GitLogError('Author name or email is required', 'INVALID_AUTHOR');
+    }
+
+    if (this.includeDirs.length > 0 && this.excludeDirs.length > 0) {
+      throw new GitLogError(
+        'Cannot use both --include-dirs and --exclude-dirs at the same time',
+        'INVALID_ARGS'
+      );
     }
   }
 
@@ -68,7 +79,13 @@ class ReviewCommand extends CommandHandler {
       console.log(`${colors.blue}Preparing review for ${colors.bright}${this.author}${colors.reset}`);
       console.log(`${colors.blue}Time range: ${this.since} to ${this.until}${colors.reset}\n`);
 
-      const commits = await getAuthorCommits(this.author, this.since, this.until);
+      const commits = await getAuthorCommits(
+        this.author,
+        this.since,
+        this.until,
+        this.includeDirs,
+        this.excludeDirs
+      );
       
       if (!commits.length) {
         console.log(`${colors.yellow}No commits found in the specified time range${colors.reset}`);
