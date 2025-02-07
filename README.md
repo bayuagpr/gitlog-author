@@ -344,7 +344,7 @@ You can check the output example (commit log version) in the [output-example/out
 
 ## Requirements
 
-- Node.js 12.x or higher
+- Node.js 14.x or higher
 - Git installed and accessible from command line
 - Must be run from within a git repository 
 
