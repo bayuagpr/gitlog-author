@@ -30,6 +30,9 @@ class ReviewCommand extends CommandHandler {
   }
 
   identifyRiskLevel(file, diffContent) {
+    if (/\.(md|mdx|markdown)$/i.test(file)) {
+      return 'LOW';
+    }
     let riskLevel = 'LOW';
     const diffText = diffContent.join('\n');
     
