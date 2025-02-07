@@ -33,8 +33,12 @@ const SOURCE_PATTERNS = [
   /\.(md|mdx)$/
 ];
 
+const { RISK_PATTERNS, FILE_PATTERNS } = require('./reviewPatterns');
+
 module.exports = {
   colors,
   EXCLUDED_PATTERNS,
-  SOURCE_PATTERNS
-}; 
+  SOURCE_PATTERNS,
+  RISK_PATTERNS,
+  FILE_PATTERNS
+};

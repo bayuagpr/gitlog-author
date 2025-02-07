@@ -9,7 +9,8 @@ Before using this tool with AI services, any third party services or sharing log
 - You're responsible for any sensitive data exposure
 - Tool only shows changed files (no diffs) to minimize security risks
 - We are NOT responsible for any NDA violations or confidentiality breaches
-- If you work with confidential code, ensure you have permission to share commit logs
+- Code diffs are only shown when explicitly requested with --review flag
+- If you work with confidential code, ensure you have permission to share commit logs and diffs
 
 ## Table of Contents
 - [Background](#background)
@@ -75,6 +76,12 @@ Ever wondered why senior developers insist on meaningful commit messages? This t
   - Time distribution (morning/afternoon/evening)
   - Commit type categorization
   - File and directory impact analysis
+- Code review functionality with `--review`:
+  - Detailed code review reports with risk assessment
+  - Create temporary review branches with `--create-branch`
+  - Custom branch naming with `--branch-name`
+  - Base commit comparison with `--base-commit`
+  - Optional branch cleanup control with `--no-cleanup`
 - Safety features:
   - No diff content included
   - Sanitized filenames
@@ -148,7 +155,7 @@ npm install -g .
 ## Usage
 
 ```bash
-gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>] [--include-dirs=<dirs>] [--exclude-dirs=<dirs>]
+gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>] [--review] [--create-branch] [--branch-name=<name>] [--base-commit=<hash>] [--no-cleanup] [--include-dirs=<dirs>] [--exclude-dirs=<dirs>]
 ```
 
 ### Arguments
@@ -161,6 +168,11 @@ gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metric
 - `--skip-fetch`: Skip fetching latest changes from remote
 - `--no-metrics`: Skip productivity metrics calculation
 - `--trend=<period>`: Generate contribution trend report (daily, weekly, or monthly)
+- `--review`: Generate detailed code review report with risk assessment
+- `--create-branch`: Create a temporary branch for accumulated review changes
+- `--branch-name=<name>`: Custom name for review branch (default: review/author/timestamp)
+- `--base-commit=<hash>`: Base commit to compare changes against (default: first commit's parent)
+- `--no-cleanup`: Keep the review branch after generating report (default: cleanup)
 - `--include-dirs=<dirs>`: Only include commits affecting these directories (comma-separated)
 - `--exclude-dirs=<dirs>`: Exclude commits affecting these directories (comma-separated)
 - `--help`, `-h`: Show help message
@@ -201,6 +213,13 @@ gitlog-author "John Doe" --trend=monthly  # Show last 6 months trends
 # Filter by directories
 gitlog-author "John Doe" --include-dirs="src,tests"  # Only include src and tests directories
 gitlog-author "John Doe" --trend=monthly --exclude-dirs="core/backend,core/shared"  # Exclude some directories and show last 6 months trends
+
+# Code review functionality
+gitlog-author "John Doe" --review  # Generate detailed code review report
+gitlog-author "John Doe" --review --since="1 week ago"  # Review code changes from the last week
+gitlog-author "John Doe" --review --create-branch  # Review with accumulated changes in a branch
+gitlog-author "John Doe" --review --create-branch --base-commit=abc123  # Review against specific base
+gitlog-author "John Doe" --review --create-branch --no-cleanup  # Keep review branch after report
 ```
 
 
@@ -255,8 +274,6 @@ Generated unless `--verify`, `--list-authors`, or `--trend=<period>` is specifie
 - File changes (without content diffs)
 - Commit hashes
 
-
-
 ### 2. Metrics File (`<author>_metrics_<timestamp>.md`) 
 Generated unless `--no-metrics` or `--trend=<period>` is specified:
 - Code Velocity
@@ -282,6 +299,15 @@ Generated only when using `--trend=<period>`:
   - Commit count
   - Time distribution
   - Commit types and counts
+
+### 4. Review File (`<author>_review_<timestamp>.md`)
+Generated only when using `--review`:
+- Detailed code review report with:
+  - Risk assessment
+  - Code changes summary
+  - File impact analysis
+  - Review branch details (if `--create-branch` used)
+  - Base commit comparison (if `--base-commit` specified)
 
 All files include:
 - Generation timestamp

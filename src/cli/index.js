@@ -11,6 +11,7 @@ const AuthorCommand = require('./commands/AuthorCommand');
 const TrendCommand = require('./commands/TrendCommand');
 const ListCommand = require('./commands/ListCommand');
 const VerifyCommand = require('./commands/VerifyCommand');
+const ReviewCommand = require('./commands/ReviewCommand');
 const GitLogError = require('../models/GitLogError');
 
 /**
@@ -20,7 +21,7 @@ function printHelp() {
   console.log(`
 ${colors.bright}Generate Git Log by Author${colors.reset}
 
-Usage: gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>] [--include-dirs=<dirs>] [--exclude-dirs=<dirs>]
+Usage: gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>] [--review] [--create-branch] [--branch-name=<name>] [--base-commit=<hash>] [--no-cleanup] [--include-dirs=<dirs>] [--exclude-dirs=<dirs>]
 
 Arguments:
   author         Author name or email to filter commits by
@@ -33,6 +34,11 @@ Options:
   --skip-fetch   Skip fetching latest changes from remote
   --no-metrics   Skip productivity metrics calculation
   --trend=<period> Generate contribution trend report (daily, weekly, or monthly)
+  --review       Generate detailed code review report with risk assessment
+  --create-branch Create a temporary branch for accumulated review changes
+  --branch-name=<name> Custom name for review branch (default: review/author/timestamp)
+  --base-commit=<hash> Base commit to compare changes against (default: first commit's parent)
+  --no-cleanup   Keep the review branch after generating report (default: cleanup)
   --include-dirs=<dirs> Only include commits affecting these directories (comma-separated)
   --exclude-dirs=<dirs> Exclude commits affecting these directories (comma-separated)
   --help, -h     Show this help message
@@ -53,6 +59,11 @@ Examples:
   gitlog-author "John Doe" --trend=monthly  # Show last 6 months trends
   gitlog-author "John Doe" --include-dirs="src,tests"  # Only src and tests directories and show commits and metrics for those directories
   gitlog-author "John Doe" --trend=monthly --exclude-dirs="core/backend,core/shared"  # Exclude some directories and show last 6 months trends
+  gitlog-author "John Doe" --review  # Generate detailed code review report with risk assessment
+  gitlog-author "John Doe" --review --since="1 week ago"  # Review code changes from the last week
+  gitlog-author "John Doe" --review --create-branch  # Review with accumulated changes in a branch
+  gitlog-author "John Doe" --review --create-branch --base-commit=abc123  # Review against specific base
+  gitlog-author "John Doe" --review --create-branch --no-cleanup  # Keep review branch after report
 
   `);
 }
@@ -83,6 +94,8 @@ async function main() {
       command = new VerifyCommand(args);
     } else if (args.find(arg => arg.startsWith('--trend='))) {
       command = new TrendCommand(args);
+    } else if (args.includes('--review')) {
+      command = new ReviewCommand(args);
     } else {
       command = new AuthorCommand(args);
     }

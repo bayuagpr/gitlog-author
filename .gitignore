@@ -40,3 +40,6 @@ out/
 
 # Git logs
 git-logs/
+
+# Repomix output
+repomix-output.txt

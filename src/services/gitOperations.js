@@ -160,8 +160,195 @@ async function fetchLatestChanges() {
   }
 }
 
+/**
+ * Gets the diff of a commit.
+ * @async
+ * @param {string} hash - The hash of the commit to get the diff for.
+ * @param {string} [parentHash=null] - The hash of the parent commit to compare against. If not provided, compares with the parent of the given commit.
+ * @returns {Promise<string>} The diff output.
+ * @throws {Error} If the git command fails.
+ */
+async function getCommitDiff(hash, parentHash = null, { stream = false } = {}) {
+  const args = ['diff', '--color=never'];
+  
+  if (parentHash) {
+    args.push(`${parentHash}..${hash}`);
+  } else {
+    args.push(`${hash}^..${hash}`); // Compare with parent
+  }
+
+  try {
+    if (stream) {
+      // Return stdout stream directly for streaming processing
+      const gitPath = process.platform === 'win32' ? 'git.exe' : 'git';
+      const childProcess = spawn(gitPath, args, {
+        env: {
+          ...process.env,
+          LANG: 'en_US.UTF-8',
+          LC_ALL: 'en_US.UTF-8',
+          GIT_TERMINAL_PROMPT: '0'
+        }
+      });
+      return childProcess.stdout;
+    } else {
+      // Original behavior for backward compatibility
+      const output = await execGitCommand('git', args);
+      return output;
+    }
+  } catch (error) {
+    if (error.message?.includes('bad revision')) {
+      // Handle first commit case
+      if (stream) {
+        const gitPath = process.platform === 'win32' ? 'git.exe' : 'git';
+        const childProcess = spawn(gitPath, ['show', '--color=never', hash], {
+          env: {
+            ...process.env,
+            LANG: 'en_US.UTF-8',
+            LC_ALL: 'en_US.UTF-8',
+            GIT_TERMINAL_PROMPT: '0'
+          }
+        });
+        return childProcess.stdout;
+      } else {
+        const rootDiff = await execGitCommand('git', ['show', '--color=never', hash]);
+        return rootDiff;
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * Gets the current branch name
+ * @async
+ * @returns {Promise<string>} Current branch name
+ * @throws {GitLogError} If command fails
+ */
+async function getCurrentBranch() {
+  try {
+    const output = await execGitCommand('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
+    return output.trim();
+  } catch (error) {
+    throw new GitLogError(
+      'Failed to get current branch: ' + error.message,
+      'GIT_BRANCH_ERROR',
+      { error: error.message }
+    );
+  }
+}
+
+/**
+ * Creates a new branch and cherry-picks commits
+ * @async
+ * @param {string} branchName - Name of the branch to create
+ * @param {string[]} commits - Array of commit hashes to cherry-pick
+ * @param {string} [startPoint] - Starting point for the branch
+ * @returns {Promise<void>}
+ * @throws {GitLogError} If branch creation or cherry-pick fails
+ */
+async function createReviewBranch(branchName, commits, startPoint = null) {
+  try {
+    // Create new branch
+    const createArgs = ['checkout', '-b', branchName];
+    if (startPoint) {
+      createArgs.push(startPoint);
+    }
+    await execGitCommand('git', createArgs);
+
+    // Cherry-pick commits in order
+    for (const commit of commits) {
+      try {
+        await execGitCommand('git', ['cherry-pick', '--no-commit', commit]);
+      } catch (error) {
+        // Abort cherry-pick and cleanup on failure
+        await execGitCommand('git', ['cherry-pick', '--abort']);
+        throw new GitLogError(
+          `Failed to cherry-pick commit ${commit}: ${error.message}`,
+          'CHERRY_PICK_FAILED',
+          { commit, error: error.message }
+        );
+      }
+    }
+  } catch (error) {
+    if (error instanceof GitLogError) {
+      throw error;
+    }
+    throw new GitLogError(
+      'Failed to create review branch: ' + error.message,
+      'BRANCH_CREATION_FAILED',
+      { error: error.message }
+    );
+  }
+}
+
+/**
+ * Gets diff between two branches or commits
+ * @async
+ * @param {string} base - Base branch/commit
+ * @param {string} compare - Branch/commit to compare against base
+ * @param {Object} [options] - Options for diff
+ * @param {boolean} [options.stream=false] - Return a readable stream instead of string
+ * @returns {Promise<string|Readable>} Diff output or readable stream
+ * @throws {GitLogError} If diff fails
+ */
+async function getBranchDiff(base, compare, { stream = false } = {}) {
+  const args = ['diff', '--color=never', `${base}...${compare}`];
+  
+  try {
+    if (stream) {
+      const gitPath = process.platform === 'win32' ? 'git.exe' : 'git';
+      const childProcess = spawn(gitPath, args, {
+        env: {
+          ...process.env,
+          LANG: 'en_US.UTF-8',
+          LC_ALL: 'en_US.UTF-8',
+          GIT_TERMINAL_PROMPT: '0'
+        }
+      });
+      return childProcess.stdout;
+    } else {
+      const output = await execGitCommand('git', args);
+      return output;
+    }
+  } catch (error) {
+    throw new GitLogError(
+      'Failed to get branch diff: ' + error.message,
+      'DIFF_FAILED',
+      { base, compare, error: error.message }
+    );
+  }
+}
+
+/**
+ * Cleans up a review branch
+ * @async
+ * @param {string} branchName - Name of branch to delete
+ * @param {string} returnBranch - Branch to checkout after deletion
+ * @returns {Promise<void>}
+ * @throws {GitLogError} If cleanup fails
+ */
+async function cleanupReviewBranch(branchName, returnBranch) {
+  try {
+    // Switch to return branch
+    await execGitCommand('git', ['checkout', returnBranch]);
+    // Delete review branch
+    await execGitCommand('git', ['branch', '-D', branchName]);
+  } catch (error) {
+    throw new GitLogError(
+      'Failed to cleanup review branch: ' + error.message,
+      'CLEANUP_FAILED',
+      { branch: branchName, error: error.message }
+    );
+  }
+}
+
 module.exports = {
   execGitCommand,
   isGitRepository,
-  fetchLatestChanges
-}; 
+  fetchLatestChanges,
+  getCommitDiff,
+  getCurrentBranch,
+  createReviewBranch,
+  getBranchDiff,
+  cleanupReviewBranch
+};
