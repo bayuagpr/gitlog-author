@@ -154,7 +154,7 @@ npm install -g .
 ## Usage
 
 ```bash
-gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>] [--review] [--include-dirs=<dirs>] [--exclude-dirs=<dirs>]
+npx gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>] [--review] [--include-dirs=<dirs>] [--exclude-dirs=<dirs>]
 ```
 
 ### Arguments
@@ -215,6 +215,7 @@ npx gitlog-author "John Doe" --trend=monthly --exclude-dirs="core/backend,core/s
 npx gitlog-author "John Doe" --review  # Generate detailed code review report
 npx gitlog-author "John Doe" --review --since="1 week ago"  # Review code changes from the last week
 ```
+
 ### Date Formats
 
 Supports various date formats:
@@ -246,13 +247,13 @@ The `--include-dirs` and `--exclude-dirs` options accept comma-separated lists o
 Examples:
 ```bash
 # Only include src and tests directories
-gitlog-author "John Doe" --include-dirs="src,tests"
+npx gitlog-author "John Doe" --include-dirs="src,tests"
 
 # Exclude core backend and shared code
-gitlog-author "John Doe" --exclude-dirs="core/backend,core/shared"
+npx gitlog-author "John Doe" --exclude-dirs="core/backend,core/shared"
 
 # Include src directory with trend analysis
-gitlog-author "John Doe" --trend=monthly --include-dirs="src"
+npx gitlog-author "John Doe" --trend=monthly --include-dirs="src"
 ```
 
 ## Output
