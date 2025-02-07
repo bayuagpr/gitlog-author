@@ -255,19 +255,12 @@ async function createReviewBranch(branchName, commits, startPoint = null) {
     }
     await execGitCommand('git', createArgs);
 
-    // Cherry-pick commits in order
-    for (const commit of commits) {
-      try {
-        await execGitCommand('git', ['cherry-pick', '--no-commit', commit]);
-      } catch (error) {
-        // Abort cherry-pick and cleanup on failure
-        await execGitCommand('git', ['cherry-pick', '--abort']);
-        throw new GitLogError(
-          `Failed to cherry-pick commit ${commit}: ${error.message}`,
-          'CHERRY_PICK_FAILED',
-          { commit, error: error.message }
-        );
-      }
+    // If multiple commits, use range syntax
+    if (commits.length > 1) {
+      const [firstCommit, lastCommit] = [commits[0], commits[commits.length - 1]];
+      await execGitCommand('git', ['cherry-pick', `${firstCommit}^..${lastCommit}`]);
+    } else if (commits.length === 1) {
+      await execGitCommand('git', ['cherry-pick', commits[0]]);
     }
   } catch (error) {
     if (error instanceof GitLogError) {
