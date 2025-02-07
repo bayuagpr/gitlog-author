@@ -250,33 +250,40 @@ async function createReviewBranch(branchName, commits, startPoint = null) {
   try {
     console.log(`Starting to create review branch: ${branchName}`);
     if (!commits || commits.length === 0) {
-      throw new GitLogError('No commits to review', 'NO_COMMITS_TO_REVIEW');
+      console.error('No commits provided for review');
+      throw new GitLogError(
+        'No commits to review',
+        'NO_COMMITS_TO_REVIEW'
+      );
     }
+
 
     // Create new branch
     const createArgs = ['checkout', '-b', branchName];
-    if (startPoint) createArgs.push(startPoint);
-    await execGitCommand('git', createArgs);
-
-    // Cherry-pick commits individually in reverse order (oldest to newest)
-    const sortedCommits = [...commits].reverse();
-    for (const commit of sortedCommits) {
-      try {
-        await execGitCommand('git', ['cherry-pick', '--allow-empty', '--no-commit', commit]);
-      } catch (cherryError) {
-        // Abort cherry-pick and clean up on conflict
-        await execGitCommand('git', ['cherry-pick', '--abort']);
-        await cleanupReviewBranch(branchName, startPoint || 'main');
-        throw new GitLogError(
-
-          `Cherry-pick failed on commit ${commit}: ${cherryError.message}`,
-          'CHERRY_PICK_CONFLICT',
-          { commit, error: cherryError.message }
-        );
-      }
+    if (startPoint) {
+      createArgs.push(startPoint);
+      console.log(`Using start point: ${startPoint}`);
     }
+    console.log(`Executing command: git ${createArgs.join(' ')}`);
+    await execGitCommand('git', createArgs);
+    console.log(`Branch ${branchName} created successfully`);
+
+    // If multiple commits, use range syntax
+    if (commits.length > 1) {
+      const [firstCommit, lastCommit] = [commits[commits.length - 1], commits[0]];
+      console.log(`Cherry-picking commits from ${firstCommit} to ${lastCommit}`);
+      await execGitCommand('git', ['cherry-pick', `${firstCommit}^..${lastCommit}`]);
+    } else if (commits.length === 1) {
+
+      console.log(`Cherry-picking single commit: ${commits[0]}`);
+      await execGitCommand('git', ['cherry-pick', commits[0]]);
+    }
+    console.log(`Review branch ${branchName} created and commits cherry-picked successfully`);
   } catch (error) {
-    if (error instanceof GitLogError) throw error;
+    console.error(`Error creating review branch: ${error.message}`);
+    if (error instanceof GitLogError) {
+      throw error;
+    }
     throw new GitLogError(
       'Failed to create review branch: ' + error.message,
       'BRANCH_CREATION_FAILED',
