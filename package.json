@@ -1,7 +1,7 @@
 {
   "$schema": "http://json.schemastore.org/package",
   "name": "gitlog-author",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Generate detailed git logs and productivity metrics for specific authors",
   "main": "src/cli/index.js",
   "bin": {
@@ -21,9 +21,20 @@
     "analysis"
   ],
   "author": "bayuagpr",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bayuagpr/gitlog-author.git"
+  },
   "license": "MIT",
   "devDependencies": {
     "eslint": "^8.0.0",
     "jest": "^29.0.0"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=14"
   }
 }
