@@ -38,16 +38,22 @@ Options:
   --help, -h     Show this help message
 
 Examples:
-  gitlog-author "John Doe"
-  gitlog-author "john@example.com" --since="1 week ago"
-  gitlog-author "John Doe" --since="2023-01-01" --until="2023-12-31"
-  gitlog-author "John" --verify
-  gitlog-author --list-authors
+  gitlog-author "John Doe" # Show commits by John Doe
+  gitlog-author "john@example.com" --since="1 week ago" # Show commits by john@example.com in the last week
+  gitlog-author "John Doe" --since="2023-01-01" --until="2023-12-31" # Show commits by John Doe in the year 2023
+  gitlog-author "John Doe" --skip-fetch # Skip fetching latest changes from remote
+  gitlog-author "John Doe" --no-metrics # Skip productivity metrics calculation
+
+  gitlog-author "John" --verify # Verify author existence and show matching authors
+  gitlog-author --list-authors # Show all authors in the repository
+
   gitlog-author "John Doe" --trend=daily    # Show last 7 days trends
+  gitlog-author "John Doe" --trend=daily --since="2023-01-01" --until="2023-12-31"    # Show based on date range
   gitlog-author "John Doe" --trend=weekly   # Show last 4 weeks trends
   gitlog-author "John Doe" --trend=monthly  # Show last 6 months trends
-  gitlog-author "John Doe" --include-dirs="src,tests"  # Only src and tests directories
-  gitlog-author "John Doe" --exclude-dirs="node_modules,dist"  # Exclude build artifacts
+  gitlog-author "John Doe" --include-dirs="src,tests"  # Only src and tests directories and show commits and metrics for those directories
+  gitlog-author "John Doe" --trend=monthly --exclude-dirs="core/backend,core/shared"  # Exclude some directories and show last 6 months trends
+
   `);
 }
 

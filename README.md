@@ -178,6 +178,12 @@ gitlog-author "John Doe" --since="1 week ago" --until="today"
 # Using ISO dates
 gitlog-author "John Doe" --since="2023-01-01" --until="2023-12-31"
 
+# Skip fetching latest changes from remote
+gitlog-author "John Doe" --skip-fetch
+
+# Skip metrics calculation
+gitlog-author "John Doe" --no-metrics
+
 # Verify author existence
 gitlog-author "John" --verify
 
@@ -186,9 +192,15 @@ gitlog-author --list-authors
 
 # Generate trend reports
 gitlog-author "John Doe" --trend=daily    # Show last 7 days trends
+gitlog-author "John Doe" --trend=daily --since="2023-01-01" --until="2023-12-31"    # Show based on date range
 gitlog-author "John Doe" --trend=weekly   # Show last 4 weeks trends
 gitlog-author "John Doe" --trend=monthly  # Show last 6 months trends
+
+# Filter by directories
+gitlog-author "John Doe" --include-dirs="src,tests"  # Only include src and tests directories
+gitlog-author "John Doe" --trend=monthly --exclude-dirs="core/backend,core/shared"  # Exclude some directories and show last 6 months trends
 ```
+
 
 ### Date Formats
 
