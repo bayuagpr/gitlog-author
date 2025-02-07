@@ -266,7 +266,9 @@ async function calculateVelocityMetrics(commits, includeDirs = [], excludeDirs =
 
     const commitDate = new Date(commit.date);
     // Convert UTC to UTC+8
-    const hour = (commitDate.getUTCHours() + 8) % 24;
+    const userTimezoneOffset = new Date().getTimezoneOffset();
+    const userTimezone = -userTimezoneOffset / 60;
+    const hour = (commitDate.getUTCHours() + userTimezone) % 24;
     
     if (hour >= 5 && hour < 12) {
       timeDistribution.morning++;

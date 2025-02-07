@@ -82,15 +82,16 @@ const PERIODS = {
   }
 };
 
-function getTimeOfDay(dateStr) {
+function getTimeOfDay(dateStr, userTimezone) {
   const date = new Date(dateStr);
-  const hour = date.getUTCHours();
+  const hour = (date.getUTCHours() + userTimezone) % 24;
   if (hour >= 5 && hour < 12) return 'morning';
   if (hour >= 12 && hour < 17) return 'afternoon';
   return 'evening';
+
 }
 
-async function calculateTrendMetrics(commits) {
+async function calculateTrendMetrics(commits, userTimezone) {
   const timeDistribution = {
     morning: 0,
     afternoon: 0,
@@ -104,7 +105,7 @@ async function calculateTrendMetrics(commits) {
 
   commits.forEach(commit => {
     // Calculate time distribution
-    const timeOfDay = getTimeOfDay(commit.date);
+    const timeOfDay = getTimeOfDay(commit.date, userTimezone);
     timeDistribution[timeOfDay]++;
 
     // Calculate commit types
@@ -133,7 +134,7 @@ async function calculateTrendMetrics(commits) {
   };
 }
 
-async function getTrends(author, period, date = new Date(), includeDirs = [], excludeDirs = []) {
+async function getTrends(author, period, date = new Date(), includeDirs = [], excludeDirs = [], userTimezone = 0) {
   if (!PERIODS[period]) {
     throw new Error(`Invalid period: ${period}. Must be one of: ${Object.keys(PERIODS).join(', ')}`);
   }
@@ -150,7 +151,7 @@ async function getTrends(author, period, date = new Date(), includeDirs = [], ex
     excludeDirs
   );
 
-  const metrics = await calculateTrendMetrics(commits);
+  const metrics = await calculateTrendMetrics(commits, userTimezone);
 
   return {
     period,
@@ -160,16 +161,17 @@ async function getTrends(author, period, date = new Date(), includeDirs = [], ex
   };
 }
 
-async function compareTrends(author, period, date1, date2, includeDirs = [], excludeDirs = []) {
+async function compareTrends(author, period, date1, date2, includeDirs = [], excludeDirs = [], userTimezone = 0) {
   const [trends1, trends2] = await Promise.all([
-    getTrends(author, period, date1, includeDirs, excludeDirs),
-    getTrends(author, period, date2, includeDirs, excludeDirs)
+    getTrends(author, period, date1, includeDirs, excludeDirs, userTimezone),
+    getTrends(author, period, date2, includeDirs, excludeDirs, userTimezone)
+
   ]);
 
   return [trends1, trends2];
 }
 
-async function getRollingTrends(author, period, count, endDate = new Date(), includeDirs = [], excludeDirs = []) {
+async function getRollingTrends(author, period, count, endDate = new Date(), includeDirs = [], excludeDirs = [], userTimezone = 0) {
   if (!PERIODS[period]) {
     throw new Error(`Invalid period: ${period}`);
   }
@@ -195,7 +197,7 @@ async function getRollingTrends(author, period, count, endDate = new Date(), inc
         break;
     }
 
-    const trend = await getTrends(author, period, date, includeDirs, excludeDirs);
+    const trend = await getTrends(author, period, date, includeDirs, excludeDirs, userTimezone);
     trends.push(trend);
   }
 
