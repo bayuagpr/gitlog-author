@@ -1,7 +1,7 @@
 {
   "$schema": "http://json.schemastore.org/package",
   "name": "gitlog-author",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Generate detailed git logs and productivity metrics for specific authors",
   "main": "src/cli/index.js",
   "bin": {
