@@ -148,7 +148,7 @@ npm install -g .
 ## Usage
 
 ```bash
-gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>]
+gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metrics] [--trend=<period>] [--include-dirs=<dirs>] [--exclude-dirs=<dirs>]
 ```
 
 ### Arguments
@@ -161,6 +161,8 @@ gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metric
 - `--skip-fetch`: Skip fetching latest changes from remote
 - `--no-metrics`: Skip productivity metrics calculation
 - `--trend=<period>`: Generate contribution trend report (daily, weekly, or monthly)
+- `--include-dirs=<dirs>`: Only include commits affecting these directories (comma-separated)
+- `--exclude-dirs=<dirs>`: Exclude commits affecting these directories (comma-separated)
 - `--help`, `-h`: Show help message
 
 ### Examples
@@ -208,6 +210,39 @@ Supports various date formats:
 - ISO 8601 (e.g., "2023-01-01")
 - Relative dates (e.g., "1 week ago", "yesterday")
 - Named dates (e.g., "last monday", "last month")
+
+### Directory Filtering Format
+
+The `--include-dirs` and `--exclude-dirs` options accept comma-separated lists of directory paths:
+
+- Paths are relative to repository root
+- No spaces between commas
+- Cannot use both include and exclude at the same time
+- Automatically excludes common patterns like:
+  - `node_modules/`
+  - `dist/`
+  - `build/`
+  - `.nx/`
+  - `coverage/`
+  - `.next/`
+  - `.cache/`
+  - `package-lock.json`
+  - `yarn.lock`
+  - Minified files (`.min.js`, `.min.css`)
+  - Source maps (`.map`)
+  - TypeScript declaration files (`.d.ts`)
+
+Examples:
+```bash
+# Only include src and tests directories
+gitlog-author "John Doe" --include-dirs="src,tests"
+
+# Exclude core backend and shared code
+gitlog-author "John Doe" --exclude-dirs="core/backend,core/shared"
+
+# Include src directory with trend analysis
+gitlog-author "John Doe" --trend=monthly --include-dirs="src"
+```
 
 ## Output
 
