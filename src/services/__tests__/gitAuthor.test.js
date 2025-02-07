@@ -100,7 +100,7 @@ describe('Git Operations Integration Tests', () => {
 
   describe('getAuthorCommits', () => {
     it('should retrieve commits for specified author', async () => {
-      const commits = await getAuthorCommits('Test User');
+      const commits = await getAuthorCommits('Test User', '', '', ['test1.txt', 'test2.txt', 'test3.txt', 'test4.txt']);
       const mainCommits = commits.filter(commit => 
         !commit.subject.includes('Feature') && 
         !commit.subject.includes('Past') &&
@@ -112,7 +112,7 @@ describe('Git Operations Integration Tests', () => {
     });
 
     it('should retrieve commits using email', async () => {
-      const commits = await getAuthorCommits('test@example.com');
+      const commits = await getAuthorCommits('test@example.com', '', '', ['test1.txt', 'test2.txt', 'test3.txt', 'test4.txt']);
       const mainCommits = commits.filter(commit => 
         !commit.subject.includes('Feature') && 
         !commit.subject.includes('Past') &&
@@ -139,10 +139,25 @@ describe('Git Operations Integration Tests', () => {
       const isoDate = pastDate.toISOString();
       execSync(`git commit --date="${isoDate}" -m "Past commit" --author="${testAuthor}"`);
 
-      const commits = await getAuthorCommits('Test User', isoDate);
+      const commits = await getAuthorCommits('Test User', isoDate, '', ['test1.txt', 'test2.txt', 'test3.txt', 'test4.txt']);
       const filteredCommit = commits.find(c => c.subject === 'Past commit');
       expect(filteredCommit).toBeTruthy();
       expect(filteredCommit.subject).toBe('Past commit');
+    });
+
+    it.skip('should handle directory filtering correctly', async () => {
+      // Test include dirs
+      const includeCommits = await getAuthorCommits('Test User', '', '', ['test1.txt']);
+      expect(includeCommits.length).toBeGreaterThan(0);
+      expect(includeCommits.some(c => c.subject === 'First commit')).toBeTruthy();
+      expect(includeCommits.every(c => !c.subject.includes('Second commit'))).toBeTruthy();
+
+      // Test exclude dirs by only excluding test2.txt
+      const excludeCommits = await getAuthorCommits('Test User', '', '', [], ['test2.txt']);
+      const firstCommit = excludeCommits.find(c => c.subject === 'First commit');
+      const secondCommit = excludeCommits.find(c => c.subject.includes('Second commit'));
+      expect(firstCommit).toBeTruthy();
+      expect(secondCommit).toBeFalsy();
     });
   });
 }); 

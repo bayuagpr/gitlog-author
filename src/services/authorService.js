@@ -6,6 +6,7 @@
 const { execGitCommand } = require('./gitOperations');
 const LRUCache = require('../utils/cache');
 const GitLogError = require('../models/GitLogError');
+const { EXCLUDED_PATTERNS } = require('../constants');
 
 // Cache for commit messages
 const commitCache = new LRUCache(1000);
@@ -72,10 +73,12 @@ async function getAllAuthors() {
  * @param {string} author - Author name or email to search for
  * @param {string} [since=''] - Optional start date for commit range
  * @param {string} [until=''] - Optional end date for commit range
+ * @param {string[]} [includeDirs=[]] - Optional directories to include
+ * @param {string[]} [excludeDirs=[]] - Optional directories to exclude
  * @returns {Promise<Array<{hash: string, date: string, subject: string, body: string}>>} Array of commit objects
  * @throws {GitLogError} If author is invalid, date format is invalid, or git operation fails
  */
-async function getAuthorCommits(author, since = '', until = '') {
+async function getAuthorCommits(author, since = '', until = '', includeDirs = [], excludeDirs = []) {
   try {
     if (!author?.trim()) {
       throw new GitLogError(
@@ -127,7 +130,8 @@ async function getAuthorCommits(author, since = '', until = '') {
         '--no-notes',
         '--first-parent',
         '--all',
-        '--date-order'
+        '--date-order',
+        '--full-history'
       ];
 
       if (since) args.push(`--since=${since}`);
@@ -135,6 +139,32 @@ async function getAuthorCommits(author, since = '', until = '') {
       
       if (pattern === authorPatterns[2]) {
         args.push('-i');
+      }
+
+      // Add directory filtering
+      args.push('--');
+      
+      if (includeDirs.length > 0) {
+        args.push(...includeDirs);
+      } else if (excludeDirs.length > 0) {
+        // When excluding, we need to explicitly include all files except the excluded ones
+        const allFiles = await execGitCommand('git', ['ls-files']);
+        const filesToInclude = allFiles
+          .split('\n')
+          .filter(file => file.trim() && !excludeDirs.some(dir => file === dir));
+        
+        if (filesToInclude.length > 0) {
+          args.push(...filesToInclude);
+        }
+        
+        // Add default excluded patterns
+        EXCLUDED_PATTERNS.forEach(pattern => {
+          const patternStr = pattern.toString().slice(1, -1);
+          args.push(`:(exclude)${patternStr}`);
+        });
+      } else {
+        // No includes or excludes, include everything
+        args.push('.');
       }
 
       try {
@@ -277,4 +307,4 @@ module.exports = {
   getAuthorCommits,
   getCommitDetails,
   isValidDateFormat
-}; 
+};

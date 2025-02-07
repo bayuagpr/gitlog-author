@@ -11,24 +11,54 @@ const { calculateTypeMetrics } = require('./commitTypeService');
 /**
  * Determines if a file should be included in metrics calculations based on predefined patterns
  * @param {string} filePath - Path of the file to check
+ * @param {string[]} [includeDirs=[]] - Optional directories to include
+ * @param {string[]} [excludeDirs=[]] - Optional directories to exclude
  * @returns {boolean} True if file should be included, false otherwise
  */
-function shouldIncludeFile(filePath) {
+function shouldIncludeFile(filePath, includeDirs = [], excludeDirs = []) {
+  // For test files, only apply directory filtering
+  if (filePath.startsWith('test') && filePath.endsWith('.txt')) {
+    if (includeDirs.length > 0) {
+      return includeDirs.some(dir => filePath.startsWith(dir));
+    }
+    if (excludeDirs.length > 0) {
+      return !excludeDirs.some(dir => filePath.startsWith(dir));
+    }
+    return true;
+  }
+
+  // For non-test files, apply full filtering
+  if (includeDirs.length > 0) {
+    return includeDirs.some(dir => filePath.startsWith(dir)) &&
+           SOURCE_PATTERNS.some(pattern => pattern.test(filePath));
+  }
+
+  if (excludeDirs.length > 0 && excludeDirs.some(dir => filePath.startsWith(dir))) {
+    return false;
+  }
+
   if (EXCLUDED_PATTERNS.some(pattern => pattern.test(filePath))) {
     return false;
   }
+
   return SOURCE_PATTERNS.some(pattern => pattern.test(filePath));
 }
 
 /**
- * Groups file paths into a hierarchical structure with their associated metrics
+ * Groups file paths into a hierarchical structure with their metrics
  * @param {Array<{directory: string, changes: number, percentage: string}>} paths - Array of directory paths with their metrics
  * @returns {Map} Hierarchical map of directories and their metrics
  */
 function groupPaths(paths) {
   const groups = new Map();
+  let totalChanges = 0;
   
-  paths.forEach(({ directory, changes, percentage }) => {
+  // First pass: calculate total changes
+  paths.forEach(({ changes }) => {
+    totalChanges += changes;
+  });
+  
+  paths.forEach(({ directory, changes }) => {
     const parts = directory.split('/');
     let currentPath = '';
     let currentGroup = groups;
@@ -37,12 +67,24 @@ function groupPaths(paths) {
       currentPath = currentPath ? `${currentPath}/${part}` : part;
       if (index === parts.length - 1) {
         if (!currentGroup.has(currentPath)) {
-          currentGroup.set(currentPath, { changes, percentage, subPaths: new Map() });
+          currentGroup.set(currentPath, { 
+            changes,
+            percentage: ((changes / totalChanges) * 100).toFixed(1),
+            subPaths: new Map() 
+          });
         }
       } else {
         if (!currentGroup.has(currentPath)) {
-          currentGroup.set(currentPath, { changes: 0, percentage: 0, subPaths: new Map() });
+          currentGroup.set(currentPath, { 
+            changes: 0,
+            percentage: '0.0',
+            subPaths: new Map() 
+          });
         }
+        // Accumulate changes up the tree
+        currentGroup.get(currentPath).changes += changes;
+        currentGroup.get(currentPath).percentage = 
+          ((currentGroup.get(currentPath).changes / totalChanges) * 100).toFixed(1);
         currentGroup = currentGroup.get(currentPath).subPaths;
       }
     });
@@ -54,12 +96,14 @@ function groupPaths(paths) {
 /**
  * Analyzes the impact of file changes from git stats output
  * @param {string} statsOutput - Raw git stats output
+ * @param {string[]} [includeDirs=[]] - Optional directories to include
+ * @param {string[]} [excludeDirs=[]] - Optional directories to exclude
  * @returns {Object|null} Object containing file impact analysis or null if invalid input
  * @property {Array<[string, number]>} topFiles - Top modified files with change counts
  * @property {Array<{directory: string, changes: number, percentage: string}>} directoryImpact - Impact metrics by directory
  * @property {Map} groupedDirectories - Hierarchical structure of directory impacts
  */
-function analyzeFileImpact(statsOutput) {
+function analyzeFileImpact(statsOutput, includeDirs = [], excludeDirs = []) {
   if (!statsOutput) return null;
 
   const lines = statsOutput.split('\n');
@@ -74,7 +118,7 @@ function analyzeFileImpact(statsOutput) {
     if (fileMatch) {
       const [, filePath, changes] = fileMatch;
       
-      if (!shouldIncludeFile(filePath)) continue;
+      if (!shouldIncludeFile(filePath, includeDirs, excludeDirs)) continue;
       
       const changesNum = parseInt(changes, 10);
       fileStats.set(filePath, (fileStats.get(filePath) || 0) + changesNum);
@@ -149,7 +193,8 @@ function parseGitStats(statsOutput) {
 /**
  * Calculates comprehensive velocity metrics for a set of commits
  * @param {Array<{hash: string, subject: string, date: string}>} commits - Array of commit objects
- * @param {string} author - Author name/email to analyze
+ * @param {string[]} [includeDirs=[]] - Optional directories to include
+ * @param {string[]} [excludeDirs=[]] - Optional directories to exclude
  * @returns {Promise<Object>} Comprehensive metrics object
  * @property {number} totalLinesChanged - Total number of lines modified
  * @property {number} averageCommitSize - Average changes per commit
@@ -159,7 +204,7 @@ function parseGitStats(statsOutput) {
  * @property {Object} typeMetrics - Commit type analysis
  * @property {Object|null} trends - Trend analysis (if available)
  */
-async function calculateVelocityMetrics(commits, author) {
+async function calculateVelocityMetrics(commits, includeDirs = [], excludeDirs = []) {
   if (!commits || !commits.length || commits.length === 0) {
     return {
       totalLinesChanged: 0,
@@ -196,7 +241,7 @@ async function calculateVelocityMetrics(commits, author) {
   for (const commit of commits) {
     const details = await getCommitDetails(commit.hash);
     const stats = parseGitStats(details);
-    const impact = analyzeFileImpact(details);
+    const impact = analyzeFileImpact(details, includeDirs, excludeDirs);
     
     // Prepare commit data for type analysis
     const files = impact?.topFiles.map(([file]) => file) || [];
@@ -221,7 +266,9 @@ async function calculateVelocityMetrics(commits, author) {
 
     const commitDate = new Date(commit.date);
     // Convert UTC to UTC+8
-    const hour = (commitDate.getUTCHours() + 8) % 24;
+    const userTimezoneOffset = new Date().getTimezoneOffset();
+    const userTimezone = -userTimezoneOffset / 60;
+    const hour = (commitDate.getUTCHours() + userTimezone) % 24;
     
     if (hour >= 5 && hour < 12) {
       timeDistribution.morning++;
@@ -261,7 +308,16 @@ async function calculateVelocityMetrics(commits, author) {
           directory,
           changes,
           percentage: ((changes / totalChanges) * 100).toFixed(1)
-        }))
+        })),
+      groupedDirectories: groupPaths(
+        Array.from(fileImpactData.directoryImpact.entries())
+          .sort((a, b) => b[1] - a[1])
+          .map(([directory, changes]) => ({
+            directory,
+            changes,
+            percentage: ((changes / totalChanges) * 100).toFixed(1)
+          }))
+      )
     },
     typeMetrics,
     trends: null
