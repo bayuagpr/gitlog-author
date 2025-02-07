@@ -248,6 +248,13 @@ async function getCurrentBranch() {
  */
 async function createReviewBranch(branchName, commits, startPoint = null) {
   try {
+    if (!commits || commits.length === 0) {
+      throw new GitLogError(
+        'No commits to review',
+        'NO_COMMITS_TO_REVIEW'
+      );
+    }
+
     // Create new branch
     const createArgs = ['checkout', '-b', branchName];
     if (startPoint) {
