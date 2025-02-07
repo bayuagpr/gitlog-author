@@ -139,11 +139,11 @@ The tool runs entirely locally using Git commands. No data is sent to external s
 ## Installation
 
 ```bash
-# Option 1: Install globally via npm
-npm install -g gitlog-author
-
-# Option 2: Use directly with npx
+# Option 1: Use directly with npx
 npx gitlog-author "John Doe"
+
+# Option 2: Install globally via npm
+npm install -g gitlog-author
 
 # Option 3: Clone and install locally
 git clone https://github.com/bayuagpr/gitlog-author.git
@@ -176,45 +176,45 @@ gitlog-author <author> [--since=<date>] [--until=<date>] [--verify] [--no-metric
 
 ```bash
 # Basic usage with author name
-gitlog-author "John Doe"
+npx gitlog-author "John Doe"
 
 # Using email address
-gitlog-author "john@example.com"
+npx gitlog-author "john@example.com"
 
 # With date range
-gitlog-author "John Doe" --since="1 week ago" --until="today"
+npx gitlog-author "John Doe" --since="1 week ago" --until="today"
 
 # Using ISO dates
-gitlog-author "John Doe" --since="2023-01-01" --until="2023-12-31"
+npx gitlog-author "John Doe" --since="2023-01-01" --until="2023-12-31"
 
 # Skip fetching latest changes from remote
-gitlog-author "John Doe" --skip-fetch
+npx gitlog-author "John Doe" --skip-fetch
 
 # Skip metrics calculation
-gitlog-author "John Doe" --no-metrics
+npx gitlog-author "John Doe" --no-metrics
 
 # Verify author existence
-gitlog-author "John" --verify
+npx gitlog-author "John" --verify
 
 # List all authors
-gitlog-author --list-authors
+npx gitlog-author --list-authors
 
 # Generate trend reports
-gitlog-author "John Doe" --trend=daily    # Show last 7 days trends
-gitlog-author "John Doe" --trend=daily --since="2023-01-01" --until="2023-12-31"    # Show based on date range
-gitlog-author "John Doe" --trend=weekly   # Show last 4 weeks trends
-gitlog-author "John Doe" --trend=monthly  # Show last 6 months trends
+npx gitlog-author "John Doe" --trend=daily    # Show last 7 days trends
+npx gitlog-author "John Doe" --trend=daily --since="2023-01-01" --until="2023-12-31"    
+
+# Show based on date range
+npx gitlog-author "John Doe" --trend=weekly   # Show last 4 weeks trends
+npx gitlog-author "John Doe" --trend=monthly  # Show last 6 months trends
 
 # Filter by directories
-gitlog-author "John Doe" --include-dirs="src,tests"  # Only include src and tests directories
-gitlog-author "John Doe" --trend=monthly --exclude-dirs="core/backend,core/shared"  # Exclude some directories and show last 6 months trends
+npx gitlog-author "John Doe" --include-dirs="src,tests"  # Only include src and tests directories
+npx gitlog-author "John Doe" --trend=monthly --exclude-dirs="core/backend,core/shared"  # Exclude some directories and show last 6 months trends
 
 # Code review functionality
-gitlog-author "John Doe" --review  # Generate detailed code review report
-gitlog-author "John Doe" --review --since="1 week ago"  # Review code changes from the last week
+npx gitlog-author "John Doe" --review  # Generate detailed code review report
+npx gitlog-author "John Doe" --review --since="1 week ago"  # Review code changes from the last week
 ```
-
-
 ### Date Formats
 
 Supports various date formats:
