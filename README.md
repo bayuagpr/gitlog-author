@@ -408,7 +408,7 @@ We welcome contributions! Here's how you can help:
 
 MIT License
 
-Copyright (c) 2025 Bayu Prakoso (bayuagpr/bayuagprx)
+Copyright (c) 2025 by Bayu Prakoso (bayuagpr/bayuagprx)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
