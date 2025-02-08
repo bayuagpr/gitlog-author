@@ -90,10 +90,19 @@ async function main() {
     } else if (args.includes('--verify')) {
       command = new VerifyCommand(args);
     } else if (args.find(arg => arg.startsWith('--trend='))) {
+      command = new VerifyCommand(args);
+      command.validateArgs();
+      await command.execute();
       command = new TrendCommand(args);
     } else if (args.includes('--review')) {
+      command = new VerifyCommand(args);
+      command.validateArgs();
+      await command.execute();
       command = new ReviewCommand(args);
     } else {
+      command = new VerifyCommand(args);
+      command.validateArgs();
+      await command.execute();
       command = new AuthorCommand(args);
     }
 
