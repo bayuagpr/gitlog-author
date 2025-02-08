@@ -81,11 +81,14 @@ Ever wondered why senior developers insist on meaningful commit messages? This t
   - File and directory impact analysis
 - Code review functionality with `--review`:
   - Detailed code review reports with risk assessment
+  - Provide checklists for code review in each diff
 - Safety features:
-  - No diff content included
+  - No diff content included by default
   - Sanitized filenames
   - UTF-8 encoding
   - Git command validation
+
+
 
 ## How It Works
 
