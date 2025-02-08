@@ -92,18 +92,30 @@ async function main() {
     } else if (args.find(arg => arg.startsWith('--trend='))) {
       command = new VerifyCommand(args);
       command.validateArgs();
-      await command.execute();
-      command = new TrendCommand(args);
+      const result = await command.execute();
+      if (result) {
+        command = new TrendCommand(args);
+      } else {
+        return
+      }
     } else if (args.includes('--review')) {
       command = new VerifyCommand(args);
       command.validateArgs();
-      await command.execute();
-      command = new ReviewCommand(args);
+      const result = await command.execute();
+      if (result) {
+        command = new ReviewCommand(args);
+      } else {
+        return
+      }
     } else {
       command = new VerifyCommand(args);
       command.validateArgs();
-      await command.execute();
-      command = new AuthorCommand(args);
+      const result = await command.execute();
+      if (result) {
+        command = new AuthorCommand(args);
+      } else {
+        return
+      }
     }
 
     command.validateArgs();
